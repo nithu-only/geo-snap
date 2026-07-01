@@ -12,7 +12,7 @@
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
     <application
-        android:label="GeoTag Camera"
+        android:label="GeoSnap"
         android:name="${applicationName}"
         android:icon="@drawable/ic_launcher"
         android:requestLegacyExternalStorage="false">

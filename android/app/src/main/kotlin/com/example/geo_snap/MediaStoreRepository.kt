@@ -1,4 +1,4 @@
-package com.example.geotag_camera
+package com.example.geo_snap
 
 import android.content.ContentResolver
 import android.content.ContentUris
@@ -9,7 +9,7 @@ import android.provider.MediaStore
 import java.io.OutputStream
 
 class MediaStoreRepository(private val resolver: ContentResolver) {
-    private val relativePath = Environment.DIRECTORY_PICTURES + "/GeoTagCamera/"
+    private val relativePath = Environment.DIRECTORY_PICTURES + "/GeoSnap/"
     private val collection =
         MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
 

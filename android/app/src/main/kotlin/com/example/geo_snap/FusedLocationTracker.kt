@@ -1,4 +1,4 @@
-package com.example.geotag_camera
+package com.example.geo_snap
 
 import android.Manifest
 import android.app.Activity

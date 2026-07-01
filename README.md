@@ -1,6 +1,6 @@
-# GeoTag Camera
+# GeoSnap
 
-GeoTag Camera is an Android-first Flutter app for capturing live camera photos and permanently stamping GPS coordinates, accuracy, timestamp, optional resolved address, and an optional map preview onto the saved image.
+GeoSnap is an Android-first Flutter app for capturing live camera photos and permanently stamping GPS coordinates, accuracy, timestamp, optional resolved address, and an optional map preview onto the saved image.
 
 It has no ads, subscriptions, analytics, tracking SDKs, sign-in, or cloud storage. Capture, GPS, watermarking, saving, and gallery browsing work offline. Address lookup and map thumbnails are best-effort only and never block saving.
 
@@ -13,7 +13,7 @@ It has no ads, subscriptions, analytics, tracking SDKs, sign-in, or cloud storag
 - Three watermark templates
 - Configurable watermark position and visible fields
 - Optional static map thumbnail when internet is available
-- Public Android save location: `Pictures/GeoTagCamera/`
+- Public Android save location: `Pictures/GeoSnap/`
 - In-app gallery with date search, preview, share, and delete
 - Material 3 UI with Provider state management
 
@@ -57,8 +57,8 @@ build/app/outputs/flutter-apk/app-release.apk
 
 ## Android Permissions
 
-The app requests camera, precise location, internet/network state for optional address/map features, and media image access where Android requires it. Saving uses Android MediaStore so photos appear in `Pictures/GeoTagCamera/` without broad file access.
+The app requests camera, precise location, internet/network state for optional address/map features, and media image access where Android requires it. Saving uses Android MediaStore so photos appear in `Pictures/GeoSnap/` without broad file access.
 
 ## Privacy
 
-GeoTag Camera does not include analytics, advertising SDKs, crash reporting SDKs, tracking, cloud sync, user accounts, or remote configuration.
+GeoSnap does not include analytics, advertising SDKs, crash reporting SDKs, tracking, cloud sync, user accounts, or remote configuration.

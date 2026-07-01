@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:geotag_camera/core/models/location_snapshot.dart';
+import 'package:geo_snap/core/models/location_snapshot.dart';
 
 void main() {
   test('builds readable address from available parts', () {

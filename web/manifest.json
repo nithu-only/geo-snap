@@ -1,6 +1,6 @@
 {
-    "name": "geotag_camera",
-    "short_name": "geotag_camera",
+    "name": "GeoSnap",
+    "short_name": "GeoSnap",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,4 +1,4 @@
-package com.example.geotag_camera
+package com.example.geo_snap
 
 import android.app.Activity
 import android.content.Context
@@ -57,7 +57,7 @@ class NativeCameraView(
             FrameLayout.LayoutParams.MATCH_PARENT,
         )
     }
-    private val channel = MethodChannel(messenger, "geotag_camera/camera_$viewId")
+    private val channel = MethodChannel(messenger, "geo_snap/camera_$viewId")
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val processingScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val captureInProgress = AtomicBoolean(false)
@@ -129,7 +129,7 @@ class NativeCameraView(
         val capture = imageCapture ?: throw IllegalStateException("Camera is not ready.")
         capture.targetRotation = previewView.display?.rotation ?: Surface.ROTATION_0
         val source = File.createTempFile("capture_", ".jpg", activity.cacheDir)
-        val gps = Location("GeoTag Camera").apply {
+        val gps = Location("GeoSnap").apply {
             latitude = metadata.latitude
             longitude = metadata.longitude
             altitude = metadata.altitude
@@ -183,6 +183,6 @@ class NativeCameraView(
     }
 
     private companion object {
-        const val PERF_TAG = "GeoTagPerf"
+        const val PERF_TAG = "GeoSnapPerf"
     }
 }

@@ -1,4 +1,4 @@
-package com.example.geotag_camera
+package com.example.geo_snap
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -14,20 +14,20 @@ class MainActivity : FlutterActivity() {
         val mediaStore = MediaStoreRepository(contentResolver)
         val watermarkProcessor = WatermarkProcessor(contentResolver, mediaStore)
         flutterEngine.platformViewsController.registry.registerViewFactory(
-            "geotag_camera/native_camera",
+            "geo_snap/native_camera",
             NativeCameraFactory(this, flutterEngine.dartExecutor.binaryMessenger, watermarkProcessor),
         )
 
         locationTracker = FusedLocationTracker(this).also { tracker ->
             EventChannel(
                 flutterEngine.dartExecutor.binaryMessenger,
-                "geotag_camera/location_events",
+                "geo_snap/location_events",
             ).setStreamHandler(tracker)
         }
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "geotag_camera/media_store",
+            "geo_snap/media_store",
         ).setMethodCallHandler { call, result ->
             try {
                 when (call.method) {

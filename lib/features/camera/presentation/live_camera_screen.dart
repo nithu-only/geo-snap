@@ -40,7 +40,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
   }
 
   void _onPlatformViewCreated(int id) {
-    final channel = MethodChannel('geotag_camera/camera_$id');
+    final channel = MethodChannel('geo_snap/camera_$id');
     channel.setMethodCallHandler(_onNativeCameraEvent);
     setState(() => _cameraChannel = channel);
   }
@@ -154,7 +154,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> {
             fit: StackFit.expand,
             children: [
               AndroidView(
-                viewType: 'geotag_camera/native_camera',
+                viewType: 'geo_snap/native_camera',
                 onPlatformViewCreated: _onPlatformViewCreated,
                 creationParamsCodec: const StandardMessageCodec(),
               ),

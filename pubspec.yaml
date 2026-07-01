@@ -1,4 +1,4 @@
-name: geotag_camera
+name: geo_snap
 description: A private offline-first GPS watermark camera for Android.
 publish_to: "none"
 version: 1.0.0+1

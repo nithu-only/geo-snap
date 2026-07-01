@@ -145,7 +145,7 @@ class PhotoDetailScreen extends StatelessWidget {
                 builder: (context) => AlertDialog(
                   title: const Text('Delete photo?'),
                   content: const Text(
-                    'This removes the saved image from GeoTagCamera.',
+                    'This removes the saved image from GeoSnap.',
                   ),
                   actions: [
                     TextButton(

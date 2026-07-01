@@ -4,7 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/gallery_photo.dart';
 
 class StorageService {
-  static const _channel = MethodChannel('geotag_camera/media_store');
+  static const _channel = MethodChannel('geo_snap/media_store');
 
   Future<String> saveJpeg({
     required Uint8List bytes,
@@ -62,7 +62,7 @@ class StorageService {
       ShareParams(
         files: [tempFile],
         fileNameOverrides: [photo.name],
-        subject: 'GeoTag Camera photo',
+        subject: 'GeoSnap photo',
         text: photo.name,
         sharePositionOrigin: null,
       ),

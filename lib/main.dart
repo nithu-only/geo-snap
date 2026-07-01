@@ -14,11 +14,11 @@ import 'features/camera/presentation/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const GeoTagCameraApp());
+  runApp(const GeoSnapApp());
 }
 
-class GeoTagCameraApp extends StatelessWidget {
-  const GeoTagCameraApp({super.key});
+class GeoSnapApp extends StatelessWidget {
+  const GeoSnapApp({super.key});
 
   @override
   Widget build(BuildContext context) {

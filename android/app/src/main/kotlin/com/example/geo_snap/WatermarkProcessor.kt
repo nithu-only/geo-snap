@@ -1,4 +1,4 @@
-package com.example.geotag_camera
+package com.example.geo_snap
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
@@ -132,7 +132,7 @@ class WatermarkProcessor(
         titlePaint.textSize = 28f * scale
 
         val lines = ArrayList<String>(4)
-        lines.add(if (metadata.showAddress) metadata.address else "GeoTag Camera")
+        lines.add(if (metadata.showAddress) metadata.address else "GeoSnap")
         if (metadata.showCoordinates) {
             lines.add(
                 String.format(
@@ -243,7 +243,7 @@ class WatermarkProcessor(
             target.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
             target.setAttribute(ExifInterface.TAG_IMAGE_WIDTH, bitmap.width.toString())
             target.setAttribute(ExifInterface.TAG_IMAGE_LENGTH, bitmap.height.toString())
-            val gps = Location("GeoTag Camera").apply {
+            val gps = Location("GeoSnap").apply {
                 latitude = metadata.latitude
                 longitude = metadata.longitude
                 altitude = metadata.altitude
