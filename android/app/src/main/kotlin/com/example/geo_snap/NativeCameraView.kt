@@ -38,7 +38,8 @@ class NativeCameraFactory(
     private val processor: WatermarkProcessor,
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-        return NativeCameraView(activity, messenger, viewId, processor)
+        val params = args as? Map<*, *>
+        return NativeCameraView(activity, messenger, viewId, processor, params)
     }
 }
 
@@ -47,6 +48,7 @@ class NativeCameraView(
     messenger: BinaryMessenger,
     viewId: Int,
     private val processor: WatermarkProcessor,
+    params: Map<*, *>?,
 ) : PlatformView, MethodChannel.MethodCallHandler {
     private val container = FrameLayout(activity)
     private val previewView = PreviewView(activity).apply {
@@ -64,8 +66,20 @@ class NativeCameraView(
     private var provider: ProcessCameraProvider? = null
     private var imageCapture: ImageCapture? = null
     private var preview: Preview? = null
+    private var currentFlashMode: Int = ImageCapture.FLASH_MODE_OFF
+    private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
 
     init {
+        params?.let {
+            val flashIndex = it["flashMode"] as? Int ?: 0
+            currentFlashMode = when (flashIndex) {
+                1 -> ImageCapture.FLASH_MODE_ON
+                2 -> ImageCapture.FLASH_MODE_AUTO
+                else -> ImageCapture.FLASH_MODE_OFF
+            }
+            val lensIndex = it["cameraLens"] as? Int ?: 0
+            lensFacing = if (lensIndex == 1) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+        }
         container.addView(previewView)
         channel.setMethodCallHandler(this)
         bindCamera()
@@ -89,6 +103,22 @@ class NativeCameraView(
                     result.error("capture_error", error.message, null)
                 }
             }
+            "setFlashMode" -> {
+                val flashIndex = call.argument<Int>("flashMode") ?: 0
+                currentFlashMode = when (flashIndex) {
+                    1 -> ImageCapture.FLASH_MODE_ON
+                    2 -> ImageCapture.FLASH_MODE_AUTO
+                    else -> ImageCapture.FLASH_MODE_OFF
+                }
+                imageCapture?.flashMode = currentFlashMode
+                result.success(true)
+            }
+            "setCameraLens" -> {
+                val lensIndex = call.argument<Int>("cameraLens") ?: 0
+                lensFacing = if (lensIndex == 1) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+                bindCamera()
+                result.success(true)
+            }
             else -> result.notImplemented()
         }
     }
@@ -107,11 +137,15 @@ class NativeCameraView(
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                         .setOutputFormat(ImageCapture.OUTPUT_FORMAT_JPEG)
                         .setJpegQuality(94)
+                        .setFlashMode(currentFlashMode)
                         .build()
                     cameraProvider.unbindAll()
+                    val cameraSelector = CameraSelector.Builder()
+                        .requireLensFacing(lensFacing)
+                        .build()
                     cameraProvider.bindToLifecycle(
                         activity as LifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        cameraSelector,
                         preview,
                         imageCapture,
                     )

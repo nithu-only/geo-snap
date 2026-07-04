@@ -6,6 +6,10 @@ It has no ads, subscriptions, analytics, tracking SDKs, sign-in, or cloud storag
 
 ## Features
 
+- **Animated Splash Screen**: Verification of permissions with early native GPS warm-up and high-end transition animations.
+- **Glassmorphic Live Viewfinder Overlay**: Camera controls overlay on live preview with rule-of-thirds grid alignment.
+- **Camera Configurations**: Dynamic flash mode toggle (On, Off, Auto) and lens selection (Front vs Back camera) saved across sessions.
+- **Fast Location Warm-Up**: Utilizes Kotlin `FusedLocationProviderClient` to query current precise location immediately alongside active stream updates.
 - Live camera capture only, with no gallery import
 - GPS status and accuracy display
 - Capture lock until accuracy is below 20 meters
@@ -19,8 +23,8 @@ It has no ads, subscriptions, analytics, tracking SDKs, sign-in, or cloud storag
 
 ## Requirements
 
-- Flutter latest stable channel, currently Flutter 3.44.0 in the official docs
-- Dart compatible with SDK `>=3.12.0 <4.0.0`
+- Flutter latest stable channel (compatible with Flutter 3.44.0+)
+- Dart SDK `>=3.12.0 <4.0.0`
 - Android SDK 36
 - Java 17
 - Gradle 8.14+ or a regenerated official Gradle wrapper

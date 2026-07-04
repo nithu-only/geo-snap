@@ -10,6 +10,9 @@ class SettingsService {
   static const _showCoordinates = 'showCoordinates';
   static const _showAccuracy = 'showAccuracy';
   static const _showMapPreview = 'showMapPreview';
+  static const _flashMode = 'flashMode';
+  static const _cameraLens = 'cameraLens';
+  static const _showGrid = 'showGrid';
 
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -26,6 +29,11 @@ class SettingsService {
           prefs.getBool(_showCoordinates) ?? defaults.showCoordinates,
       showAccuracy: prefs.getBool(_showAccuracy) ?? defaults.showAccuracy,
       showMapPreview: prefs.getBool(_showMapPreview) ?? defaults.showMapPreview,
+      flashMode: FlashMode
+          .values[prefs.getInt(_flashMode) ?? defaults.flashMode.index],
+      cameraLens: CameraLens
+          .values[prefs.getInt(_cameraLens) ?? defaults.cameraLens.index],
+      showGrid: prefs.getBool(_showGrid) ?? defaults.showGrid,
     );
   }
 
@@ -38,5 +46,8 @@ class SettingsService {
     await prefs.setBool(_showCoordinates, settings.showCoordinates);
     await prefs.setBool(_showAccuracy, settings.showAccuracy);
     await prefs.setBool(_showMapPreview, settings.showMapPreview);
+    await prefs.setInt(_flashMode, settings.flashMode.index);
+    await prefs.setInt(_cameraLens, settings.cameraLens.index);
+    await prefs.setBool(_showGrid, settings.showGrid);
   }
 }

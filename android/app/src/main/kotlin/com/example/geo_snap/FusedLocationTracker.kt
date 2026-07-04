@@ -49,6 +49,15 @@ class FusedLocationTracker(private val activity: Activity) : EventChannel.Stream
                 callback.onLocationResult(LocationResult.create(listOf(location)))
             }
         }
+        try {
+            client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener { location ->
+                if (location != null) {
+                    callback.onLocationResult(LocationResult.create(listOf(location)))
+                }
+            }
+        } catch (e: SecurityException) {
+            // Permission might have been revoked
+        }
         client.requestLocationUpdates(request, callback, Looper.getMainLooper())
     }
 

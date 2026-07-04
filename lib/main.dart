@@ -10,7 +10,7 @@ import 'core/services/storage_service.dart';
 import 'core/state/gallery_controller.dart';
 import 'core/state/location_controller.dart';
 import 'core/state/settings_controller.dart';
-import 'features/camera/presentation/home_screen.dart';
+import 'features/camera/presentation/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +32,7 @@ class GeoSnapApp extends StatelessWidget {
             LocationService(),
             NativeLocationService(),
             MapThumbnailService(),
-          )..start(),
+          ),
         ),
         ChangeNotifierProvider(
           create: (_) => GalleryController(StorageService()),
@@ -58,7 +58,7 @@ class GeoSnapApp extends StatelessWidget {
           ),
           cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero),
         ),
-        home: const HomeScreen(),
+        home: const SplashScreen(),
       ),
     );
   }

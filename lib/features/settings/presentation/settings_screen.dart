@@ -124,6 +124,75 @@ class SettingsScreen extends StatelessWidget {
             onChanged: (value) =>
                 controller.update(settings.copyWith(showMapPreview: value)),
           ),
+          const Divider(height: 32),
+          Text(
+            'Default Camera Settings',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Default Flash Mode',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<FlashMode>(
+            segments: const [
+              ButtonSegment(
+                value: FlashMode.off,
+                icon: Icon(Icons.flash_off),
+                label: Text('Off'),
+              ),
+              ButtonSegment(
+                value: FlashMode.on,
+                icon: Icon(Icons.flash_on),
+                label: Text('On'),
+              ),
+              ButtonSegment(
+                value: FlashMode.auto,
+                icon: Icon(Icons.flash_auto),
+                label: Text('Auto'),
+              ),
+            ],
+            selected: {settings.flashMode},
+            onSelectionChanged: (value) {
+              controller.update(settings.copyWith(flashMode: value.first));
+            },
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Default Camera Lens',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<CameraLens>(
+            segments: const [
+              ButtonSegment(
+                value: CameraLens.back,
+                icon: Icon(Icons.camera_rear),
+                label: Text('Back Camera'),
+              ),
+              ButtonSegment(
+                value: CameraLens.front,
+                icon: Icon(Icons.camera_front),
+                label: Text('Front Camera'),
+              ),
+            ],
+            selected: {settings.cameraLens},
+            onSelectionChanged: (value) {
+              controller.update(settings.copyWith(cameraLens: value.first));
+            },
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            value: settings.showGrid,
+            title: const Text('Show Grid Lines'),
+            subtitle: const Text('Displays a 3x3 rule-of-thirds grid on the camera'),
+            onChanged: (value) =>
+                controller.update(settings.copyWith(showGrid: value)),
+          ),
         ],
       ),
     );

@@ -84,6 +84,10 @@ class LocationController extends ChangeNotifier {
     );
   }
 
+  Future<void> warmUp() async {
+    await start();
+  }
+
   LocationSnapshot? captureSnapshot() => _snapshot;
 
   Future<void> _refreshEnrichmentIfNeeded(LocationSnapshot current) async {

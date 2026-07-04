@@ -2,6 +2,10 @@ enum WatermarkTemplate { compact, largePanel, gpsMapCamera }
 
 enum WatermarkPosition { topLeft, topRight, bottomLeft, bottomRight }
 
+enum FlashMode { off, on, auto }
+
+enum CameraLens { back, front }
+
 class AppSettings {
   const AppSettings({
     required this.template,
@@ -11,6 +15,9 @@ class AppSettings {
     required this.showCoordinates,
     required this.showAccuracy,
     required this.showMapPreview,
+    required this.flashMode,
+    required this.cameraLens,
+    required this.showGrid,
   });
 
   factory AppSettings.defaults() => const AppSettings(
@@ -21,6 +28,9 @@ class AppSettings {
     showCoordinates: true,
     showAccuracy: true,
     showMapPreview: true,
+    flashMode: FlashMode.off,
+    cameraLens: CameraLens.back,
+    showGrid: false,
   );
 
   final WatermarkTemplate template;
@@ -30,6 +40,9 @@ class AppSettings {
   final bool showCoordinates;
   final bool showAccuracy;
   final bool showMapPreview;
+  final FlashMode flashMode;
+  final CameraLens cameraLens;
+  final bool showGrid;
 
   AppSettings copyWith({
     WatermarkTemplate? template,
@@ -39,6 +52,9 @@ class AppSettings {
     bool? showCoordinates,
     bool? showAccuracy,
     bool? showMapPreview,
+    FlashMode? flashMode,
+    CameraLens? cameraLens,
+    bool? showGrid,
   }) {
     return AppSettings(
       template: template ?? this.template,
@@ -48,6 +64,10 @@ class AppSettings {
       showCoordinates: showCoordinates ?? this.showCoordinates,
       showAccuracy: showAccuracy ?? this.showAccuracy,
       showMapPreview: showMapPreview ?? this.showMapPreview,
+      flashMode: flashMode ?? this.flashMode,
+      cameraLens: cameraLens ?? this.cameraLens,
+      showGrid: showGrid ?? this.showGrid,
     );
   }
 }
+
