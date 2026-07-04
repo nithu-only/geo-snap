@@ -4,7 +4,12 @@ GeoSnap is an Android-first Flutter app for capturing live camera photos and per
 
 It has no ads, subscriptions, analytics, tracking SDKs, sign-in, or cloud storage. Capture, GPS, watermarking, saving, and gallery browsing work offline. Address lookup and map thumbnails are best-effort only and never block saving.
 
+## Download
+
+You can download the latest production-ready Android APK directly from the [GitHub Releases](https://github.com/nithu-only/geo-snap/releases) page.
+
 ## Features
+
 
 - **Animated Splash Screen**: Verification of permissions with early native GPS warm-up and high-end transition animations.
 - **Glassmorphic Live Viewfinder Overlay**: Camera controls overlay on live preview with rule-of-thirds grid alignment.
