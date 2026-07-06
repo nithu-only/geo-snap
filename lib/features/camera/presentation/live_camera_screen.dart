@@ -27,6 +27,13 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
   
   late AnimationController _flipController;
 
+  // Premium Toast state variables
+  bool _showToast = false;
+  String _toastTitle = '';
+  String _toastSubtitle = '';
+  bool _toastSuccess = true;
+  Timer? _toastTimer;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +47,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
   @override
   void dispose() {
     _flipController.dispose();
+    _toastTimer?.cancel();
     super.dispose();
   }
 
@@ -78,10 +86,10 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
         });
       case 'onPhotoSaved':
         setState(() => _captureQueued = false);
-        _showMessage('Photo Saved');
+        _showMessage('Photo Saved', subtitle: 'Saved to Pictures/GeoSnap/');
       case 'onPhotoError':
         setState(() => _captureQueued = false);
-        _showMessage('Unable to save photo');
+        _showMessage('Unable to Save Photo', subtitle: 'An error occurred during save', isSuccess: false);
       case 'onCameraError':
         setState(() {
           _captureQueued = false;
@@ -98,11 +106,11 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
       return;
     }
     if (location == null) {
-      _showMessage('Location is not available yet.');
+      _showMessage('GPS Location Not Ready', subtitle: 'Please wait for a satellite lock', isSuccess: false);
       return;
     }
     if (!locationController.hasCaptureAccuracy) {
-      _showMessage('GPS accuracy must be below 20m before capture.');
+      _showMessage('Poor GPS Accuracy', subtitle: 'Wait for accuracy below 20m', isSuccess: false);
       return;
     }
 
@@ -127,6 +135,8 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'mapBytes': settings.showMapPreview
                 ? locationController.cachedMapBytes
                 : null,
+            'addressHeader': location.headerAddress,
+            'addressBody': location.bodyAddress,
           })
           .then((accepted) {
             if (mounted && accepted != true) {
@@ -136,7 +146,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
           .catchError((Object _) {
             if (mounted) {
               setState(() => _captureQueued = false);
-              _showMessage('Unable to capture photo');
+              _showMessage('Unable to Save Photo', subtitle: 'An error occurred during save', isSuccess: false);
             }
           }),
     );
@@ -147,13 +157,13 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
     final nextFlash = FlashMode.values[(settings.flashMode.index + 1) % 3];
     controller.update(settings.copyWith(flashMode: nextFlash));
     _cameraChannel?.invokeMethod('setFlashMode', {'flashMode': nextFlash.index});
-    _showMessage('Flash: ${nextFlash.name.toUpperCase()}');
+    _showMessage('Flash Updated', subtitle: 'Mode set to ${nextFlash.name.toUpperCase()}');
   }
 
   void _toggleGrid(AppSettings settings) {
     final controller = context.read<SettingsController>();
     controller.update(settings.copyWith(showGrid: !settings.showGrid));
-    _showMessage('Grid Lines: ${(!settings.showGrid) ? 'ON' : 'OFF'}');
+    _showMessage('Grid Updated', subtitle: 'Grid lines set to ${(!settings.showGrid) ? 'ON' : 'OFF'}');
   }
 
   void _flipCamera(AppSettings settings) {
@@ -169,10 +179,21 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
     _cameraChannel?.invokeMethod('setCameraLens', {'cameraLens': nextLens.index});
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
-    );
+  void _showMessage(String title, {String subtitle = '', bool isSuccess = true}) {
+    _toastTimer?.cancel();
+    setState(() {
+      _toastTitle = title;
+      _toastSubtitle = subtitle;
+      _toastSuccess = isSuccess;
+      _showToast = true;
+    });
+    _toastTimer = Timer(const Duration(milliseconds: 2500), () {
+      if (mounted) {
+        setState(() {
+          _showToast = false;
+        });
+      }
+    });
   }
 
   @override
@@ -362,6 +383,91 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
                   ],
                 ),
               ],
+            ),
+          ),
+        ),
+
+        // Premium glassmorphic Toast notification overlay
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 375),
+          curve: Curves.easeOutBack,
+          top: _showToast ? MediaQuery.of(context).padding.top + 16 : -120,
+          left: 20,
+          right: 20,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 250),
+            opacity: _showToast ? 1.0 : 0.0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.78),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _toastSuccess 
+                      ? Colors.tealAccent.withValues(alpha: 0.3) 
+                      : Colors.redAccent.withValues(alpha: 0.3),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (_toastSuccess ? Colors.tealAccent : Colors.redAccent)
+                        .withValues(alpha: 0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: (_toastSuccess ? Colors.tealAccent : Colors.redAccent)
+                              .withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _toastSuccess ? Icons.check_circle_rounded : Icons.error_rounded,
+                          color: _toastSuccess ? Colors.tealAccent : Colors.redAccent,
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _toastTitle,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            if (_toastSubtitle.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                _toastSubtitle,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),

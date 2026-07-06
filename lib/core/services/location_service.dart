@@ -69,6 +69,8 @@ class LocationService {
         city: _firstNonBlank([place.locality, place.subAdministrativeArea]),
         state: place.administrativeArea,
         country: place.country,
+        postalCode: place.postalCode,
+        countryCode: place.isoCountryCode,
       );
     } catch (_) {
       return snapshot;

@@ -68,6 +68,8 @@ class LocationController extends ChangeNotifier {
           city: cached?.city,
           state: cached?.state,
           country: cached?.country,
+          postalCode: cached?.postalCode,
+          countryCode: cached?.countryCode,
         );
         _loading = false;
         _message = hasCaptureAccuracy

@@ -34,6 +34,8 @@ data class CaptureMetadata(
     val showAccuracy: Boolean,
     val showMapPreview: Boolean,
     val mapBytes: ByteArray?,
+    val addressHeader: String?,
+    val addressBody: String?,
 ) {
     companion object {
         fun from(arguments: Map<*, *>): CaptureMetadata {
@@ -52,6 +54,8 @@ data class CaptureMetadata(
                 showAccuracy = arguments["showAccuracy"] as Boolean,
                 showMapPreview = arguments["showMapPreview"] as Boolean,
                 mapBytes = arguments["mapBytes"] as? ByteArray,
+                addressHeader = arguments["addressHeader"] as? String,
+                addressBody = arguments["addressBody"] as? String,
             )
         }
     }
@@ -122,11 +126,17 @@ class WatermarkProcessor(
     }
 
     private fun drawWatermark(bitmap: Bitmap, metadata: CaptureMetadata) {
-        val canvas = Canvas(bitmap)
         val scale = max(bitmap.width / 1600f, 1f)
         val margin = 24f * scale
         val padding = 18f * scale
         val radius = 18f * scale
+
+        if (metadata.template == 2) {
+            drawGpsMapCameraWatermark(bitmap, metadata, scale, margin, padding, radius)
+            return
+        }
+
+        val canvas = Canvas(bitmap)
         val lineHeight = 34f * scale
         textPaint.textSize = 24f * scale
         titlePaint.textSize = 28f * scale
@@ -174,16 +184,13 @@ class WatermarkProcessor(
 
         panelRect.set(left, top, left + panelWidth, top + panelHeight)
         canvas.drawRoundRect(panelRect, radius, radius, panelPaint)
-        if (metadata.template == 2) {
-            panelRect.set(left, top, left + 8f * scale, top + panelHeight)
-            canvas.drawRoundRect(panelRect, radius, radius, accentPaint)
-        }
 
         var textX = left + padding
         if (map != null) {
             mapSourceRect.set(0, 0, map.width, map.height)
             mapDestinationRect.set(textX, top + padding, textX + mapWidth, top + padding + mapHeight)
             canvas.drawBitmap(map, mapSourceRect, mapDestinationRect, null)
+            drawLocationPin(canvas, mapDestinationRect, scale)
             textX += mapWidth + padding
         }
         val maxTextWidth = left + panelWidth - padding - textX
@@ -194,6 +201,177 @@ class WatermarkProcessor(
             canvas.drawText(display, textX, baseline, paint)
         }
         map?.recycle()
+    }
+
+    private fun drawGpsMapCameraWatermark(
+        bitmap: Bitmap,
+        metadata: CaptureMetadata,
+        scale: Float,
+        margin: Float,
+        padding: Float,
+        radius: Float
+    ) {
+        val canvas = Canvas(bitmap)
+        
+        val textPaintLocal = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(225, 232, 235)
+            textSize = 22f * scale
+            typeface = android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL)
+        }
+        val titlePaintLocal = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = 26f * scale
+            typeface = android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD)
+        }
+
+        val lines = ArrayList<String>()
+        
+        if (metadata.showAddress) {
+            lines.add(metadata.addressHeader ?: metadata.address)
+        } else {
+            lines.add("GeoSnap")
+        }
+
+        if (metadata.showAddress && !metadata.addressBody.isNullOrBlank()) {
+            lines.add(metadata.addressBody)
+        }
+
+        val coordParts = ArrayList<String>()
+        if (metadata.showCoordinates) {
+            coordParts.add(String.format(Locale.US, "Lat %.6f° Long %.6f°", metadata.latitude, metadata.longitude))
+        }
+        if (metadata.showAccuracy) {
+            coordParts.add(String.format(Locale.US, "Accuracy: %.0fm", metadata.accuracy))
+        }
+        if (coordParts.isNotEmpty()) {
+            lines.add(coordParts.joinToString("   "))
+        }
+
+        val sdf = SimpleDateFormat("EEEE, dd/MM/yyyy hh:mm a", Locale.US)
+        val formattedDate = sdf.format(Date(metadata.capturedAtMillis))
+        val tz = java.util.TimeZone.getDefault()
+        val offsetMillis = tz.getOffset(metadata.capturedAtMillis)
+        val offsetHours = Math.abs(offsetMillis / 3600000)
+        val offsetMinutes = Math.abs((offsetMillis % 3600000) / 60000)
+        val sign = if (offsetMillis >= 0) "+" else "-"
+        val tzOffsetStr = String.format("GMT %s%02d:%02d", sign, offsetHours, offsetMinutes)
+        val finalTimestamp = "$formattedDate $tzOffsetStr"
+        lines.add(finalTimestamp)
+
+        val map = if (metadata.showMapPreview && metadata.mapBytes != null) {
+            try {
+                BitmapFactory.decodeByteArray(metadata.mapBytes, 0, metadata.mapBytes.size)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+
+        val mapSize = if (map == null) 0f else 180f * scale
+        val mapWidth = mapSize
+        val mapHeight = mapSize
+
+        val widestText = lines.mapIndexed { index, s ->
+            val paint = if (index == 0) titlePaintLocal else textPaintLocal
+            paint.measureText(s)
+        }.maxOrNull() ?: 0f
+
+        val panelWidth = min(
+            bitmap.width - margin * 2,
+            max(450f * scale, widestText + padding * 2 + if (map == null) 0f else mapWidth + padding)
+        )
+
+        val lineHeight = 36f * scale
+        val textBlockHeight = lines.size * lineHeight
+        val panelHeight = max(textBlockHeight + padding * 2, mapHeight + padding * 2)
+
+        val left = when (metadata.position) {
+            1, 3 -> bitmap.width - panelWidth - margin
+            else -> margin
+        }
+        val top = when (metadata.position) {
+            2, 3 -> bitmap.height - panelHeight - margin
+            else -> margin
+        }
+
+        panelRect.set(left, top, left + panelWidth, top + panelHeight)
+        canvas.drawRoundRect(panelRect, radius, radius, panelPaint)
+
+        var textX = left + padding
+        if (map != null) {
+            val mapRadius = 12f * scale
+            mapSourceRect.set(0, 0, map.width, map.height)
+            val mapTop = top + (panelHeight - mapHeight) / 2
+            mapDestinationRect.set(textX, mapTop, textX + mapWidth, mapTop + mapHeight)
+
+            canvas.save()
+            val mapClipPath = android.graphics.Path().apply {
+                addRoundRect(mapDestinationRect, mapRadius, mapRadius, android.graphics.Path.Direction.CW)
+            }
+            canvas.clipPath(mapClipPath)
+            canvas.drawBitmap(map, mapSourceRect, mapDestinationRect, null)
+            canvas.restore()
+
+            val mapBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(40, 255, 255, 255)
+                style = Paint.Style.STROKE
+                strokeWidth = 1f * scale
+            }
+            canvas.drawRoundRect(mapDestinationRect, mapRadius, mapRadius, mapBorderPaint)
+
+            drawLocationPin(canvas, mapDestinationRect, scale)
+
+            textX += mapWidth + padding
+        }
+
+        val textStartTop = top + (panelHeight - textBlockHeight) / 2
+        val maxTextWidth = left + panelWidth - padding - textX
+
+        lines.forEachIndexed { index, value ->
+            val paint = if (index == 0) titlePaintLocal else textPaintLocal
+            val display = ellipsize(value, paint, maxTextWidth)
+            val baseline = textStartTop - paint.fontMetrics.top + index * lineHeight
+            canvas.drawText(display, textX, baseline, paint)
+        }
+
+        map?.recycle()
+    }
+
+    private fun drawLocationPin(canvas: Canvas, rect: RectF, scale: Float) {
+        val cx = rect.centerX()
+        val cy = rect.centerY()
+
+        val pinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(220, 50, 47)
+            style = Paint.Style.FILL
+        }
+        val pinInnerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(80, 10, 10)
+            style = Paint.Style.FILL
+        }
+        val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(80, 0, 0, 0)
+            style = Paint.Style.FILL
+        }
+
+        val shadowRadius = 4f * scale
+        canvas.drawOval(cx - shadowRadius, cy - shadowRadius / 2, cx + shadowRadius, cy + shadowRadius / 2, shadowPaint)
+
+        val pinHeight = 24f * scale
+        val pinWidth = 14f * scale
+        val pinPath = android.graphics.Path().apply {
+            moveTo(cx, cy)
+            cubicTo(cx - pinWidth / 2, cy - pinHeight * 0.4f, cx - pinWidth, cy - pinHeight * 0.7f, cx - pinWidth / 2, cy - pinHeight)
+            cubicTo(cx - pinWidth / 4, cy - pinHeight - pinWidth / 2, cx + pinWidth / 4, cy - pinHeight - pinWidth / 2, cx + pinWidth / 2, cy - pinHeight)
+            cubicTo(cx + pinWidth, cy - pinHeight * 0.7f, cx + pinWidth / 2, cy - pinHeight * 0.4f, cx, cy)
+            close()
+        }
+        canvas.drawPath(pinPath, pinPaint)
+
+        val dotY = cy - pinHeight * 0.85f
+        val dotRadius = 3f * scale
+        canvas.drawCircle(cx, dotY, dotRadius, pinInnerPaint)
     }
 
     private fun timestampFormat(pattern: String): SimpleDateFormat {

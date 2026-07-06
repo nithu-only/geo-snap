@@ -15,15 +15,25 @@ class MapThumbnailService {
       return null;
     }
 
-    final uri = Uri.https('staticmap.openstreetmap.de', '/staticmap.php', {
-      'center': '$latitude,$longitude',
-      'zoom': '16',
-      'size': '360x180',
-      'markers': '$latitude,$longitude,red-pushpin',
+    final double delta = 0.0018;
+    final xmin = longitude - delta;
+    final ymin = latitude - delta;
+    final xmax = longitude + delta;
+    final ymax = latitude + delta;
+
+    final uri = Uri.https('services.arcgisonline.com', '/ArcGIS/rest/services/World_Imagery/MapServer/export', {
+      'bbox': '$xmin,$ymin,$xmax,$ymax',
+      'bboxSR': '4326',
+      'size': '300,300',
+      'imageSR': '4326',
+      'format': 'png',
+      'f': 'image',
     });
 
     try {
-      final response = await http.get(uri).timeout(AppConstants.mapTimeout);
+      final response = await http.get(uri, headers: {
+        'User-Agent': 'GeoSnap/1.0 (Android; Offline GPS Camera)',
+      }).timeout(AppConstants.mapTimeout);
       if (response.statusCode == 200 &&
           response.headers['content-type']?.startsWith('image/') == true) {
         return response.bodyBytes;
