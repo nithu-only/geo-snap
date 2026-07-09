@@ -201,7 +201,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Private GPS Watermark Camera',
+                    "Don't Just Snap. GeoSnap",
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: colors.primary,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Capture Where It Happened.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: colors.onSurfaceVariant.withValues(alpha: 0.8),
                           letterSpacing: 0.5,

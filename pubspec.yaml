@@ -1,5 +1,5 @@
 name: geo_snap
-description: A private offline-first GPS watermark camera for Android.
+description: Don't Just Snap. GeoSnap - A private offline-first GPS camera for Android.
 publish_to: "none"
 version: 1.1.0+2
 
@@ -23,6 +23,14 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/app_icon.jpg"
+  min_sdk_android: 21
+  remove_alpha_ios: true

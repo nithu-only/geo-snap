@@ -1,10 +1,11 @@
-package com.example.geo_snap
+package com.nithu.geosnap
 
 import android.app.Activity
 import android.content.Context
 import android.location.Location
 import android.os.SystemClock
 import android.util.Log
+import android.view.OrientationEventListener
 import android.view.Surface
 import android.view.View
 import android.widget.FrameLayout
@@ -68,6 +69,21 @@ class NativeCameraView(
     private var preview: Preview? = null
     private var currentFlashMode: Int = ImageCapture.FLASH_MODE_OFF
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
+    private var currentDeviceRotation: Int = Surface.ROTATION_0
+
+    private val orientationEventListener = object : OrientationEventListener(activity) {
+        override fun onOrientationChanged(orientation: Int) {
+            if (orientation == ORIENTATION_UNKNOWN) return
+            val rotation = when {
+                orientation >= 315 || orientation < 45 -> Surface.ROTATION_0
+                orientation in 45..134 -> Surface.ROTATION_270
+                orientation in 135..224 -> Surface.ROTATION_180
+                else -> Surface.ROTATION_90
+            }
+            currentDeviceRotation = rotation
+            imageCapture?.targetRotation = rotation
+        }
+    }
 
     init {
         params?.let {
@@ -83,6 +99,7 @@ class NativeCameraView(
         container.addView(previewView)
         channel.setMethodCallHandler(this)
         bindCamera()
+        orientationEventListener.enable()
     }
 
     override fun getView(): View = container
@@ -161,7 +178,7 @@ class NativeCameraView(
     private fun queueCapture(metadata: CaptureMetadata) {
         val startedAt = SystemClock.elapsedRealtime()
         val capture = imageCapture ?: throw IllegalStateException("Camera is not ready.")
-        capture.targetRotation = previewView.display?.rotation ?: Surface.ROTATION_0
+        capture.targetRotation = currentDeviceRotation
         val source = File.createTempFile("capture_", ".jpg", activity.cacheDir)
         val gps = Location("GeoSnap").apply {
             latitude = metadata.latitude
@@ -209,6 +226,7 @@ class NativeCameraView(
 
     override fun dispose() {
         channel.setMethodCallHandler(null)
+        orientationEventListener.disable()
         preview?.let { provider?.unbind(it) }
         imageCapture?.let { provider?.unbind(it) }
         processingScope.cancel()

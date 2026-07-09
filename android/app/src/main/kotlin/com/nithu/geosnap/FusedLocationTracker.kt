@@ -1,4 +1,4 @@
-package com.example.geo_snap
+package com.nithu.geosnap
 
 import android.Manifest
 import android.app.Activity

@@ -1,4 +1,4 @@
-package com.example.geo_snap
+package com.nithu.geosnap
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
@@ -126,7 +126,9 @@ class WatermarkProcessor(
     }
 
     private fun drawWatermark(bitmap: Bitmap, metadata: CaptureMetadata) {
-        val scale = max(bitmap.width / 1600f, 1f)
+        val isLandscape = bitmap.width > bitmap.height
+        val refDimension = if (isLandscape) bitmap.height else bitmap.width
+        val scale = max(refDimension / 1600f, 1f)
         val margin = 24f * scale
         val padding = 18f * scale
         val radius = 18f * scale
@@ -168,8 +170,9 @@ class WatermarkProcessor(
         val mapWidth = if (map == null) 0f else 220f * scale
         val mapHeight = if (map == null) 0f else 120f * scale
         val widestText = lines.maxOf { titlePaint.measureText(it) }
+        val maxPanelWidth = if (isLandscape) bitmap.width * 0.6f else bitmap.width - margin * 2
         val panelWidth = min(
-            bitmap.width - margin * 2,
+            maxPanelWidth,
             max(430f * scale, widestText + padding * 2 + if (map == null) 0f else mapWidth + padding),
         )
         val panelHeight = max(lines.size * lineHeight + padding * 2, mapHeight + padding * 2)
@@ -277,8 +280,10 @@ class WatermarkProcessor(
             paint.measureText(s)
         }.maxOrNull() ?: 0f
 
+        val isLandscape = bitmap.width > bitmap.height
+        val maxPanelWidth = if (isLandscape) bitmap.width * 0.6f else bitmap.width - margin * 2
         val panelWidth = min(
-            bitmap.width - margin * 2,
+            maxPanelWidth,
             max(450f * scale, widestText + padding * 2 + if (map == null) 0f else mapWidth + padding)
         )
 

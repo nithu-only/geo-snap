@@ -38,7 +38,12 @@ class LocationSnapshot {
         .where((part) => part != null && part.trim().isNotEmpty)
         .cast<String>()
         .toList();
-    final base = parts.isEmpty ? 'Location unavailable' : parts.join(', ');
+    if (parts.isEmpty) {
+      final latSign = latitude >= 0 ? 'N' : 'S';
+      final lonSign = longitude >= 0 ? 'E' : 'W';
+      return 'GPS: ${latitude.abs().toStringAsFixed(5)}° $latSign, ${longitude.abs().toStringAsFixed(5)}° $lonSign';
+    }
+    final base = parts.join(', ');
     final emoji = flagEmoji;
     return emoji.isNotEmpty ? '$base $emoji' : base;
   }
@@ -54,7 +59,10 @@ class LocationSnapshot {
         .where((part) => part != null && part.trim().isNotEmpty)
         .cast<String>()
         .toList();
-    return parts.isEmpty ? 'Location unavailable' : parts.join(', ');
+    if (parts.isEmpty) {
+      return 'Alt: ${altitude.toStringAsFixed(1)}m   Acc: ${accuracy.toStringAsFixed(1)}m';
+    }
+    return parts.join(', ');
   }
 
   String get shortAddress {
@@ -62,7 +70,10 @@ class LocationSnapshot {
         .where((part) => part != null && part.trim().isNotEmpty)
         .cast<String>()
         .toList();
-    return parts.isEmpty ? 'Location unavailable' : parts.join(', ');
+    if (parts.isEmpty) {
+      return 'Lat: ${latitude.toStringAsFixed(5)}  Long: ${longitude.toStringAsFixed(5)}';
+    }
+    return parts.join(', ');
   }
 
   String get fullAddress {
@@ -70,7 +81,10 @@ class LocationSnapshot {
         .where((part) => part != null && part.trim().isNotEmpty)
         .cast<String>()
         .toList();
-    return parts.isEmpty ? shortAddress : parts.join(', ');
+    if (parts.isEmpty) {
+      return 'Lat: ${latitude.toStringAsFixed(5)}, Long: ${longitude.toStringAsFixed(5)} (Alt: ${altitude.toStringAsFixed(1)}m)';
+    }
+    return parts.join(', ');
   }
 
   LocationSnapshot copyWithAddress({

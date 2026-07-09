@@ -13,6 +13,8 @@ class SettingsService {
   static const _flashMode = 'flashMode';
   static const _cameraLens = 'cameraLens';
   static const _showGrid = 'showGrid';
+  static const _customNote = 'customNote';
+  static const _timerSeconds = 'timerSeconds';
 
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -34,6 +36,8 @@ class SettingsService {
       cameraLens: CameraLens
           .values[prefs.getInt(_cameraLens) ?? defaults.cameraLens.index],
       showGrid: prefs.getBool(_showGrid) ?? defaults.showGrid,
+      customNote: prefs.getString(_customNote) ?? defaults.customNote,
+      timerSeconds: prefs.getInt(_timerSeconds) ?? defaults.timerSeconds,
     );
   }
 
@@ -49,5 +53,7 @@ class SettingsService {
     await prefs.setInt(_flashMode, settings.flashMode.index);
     await prefs.setInt(_cameraLens, settings.cameraLens.index);
     await prefs.setBool(_showGrid, settings.showGrid);
+    await prefs.setString(_customNote, settings.customNote);
+    await prefs.setInt(_timerSeconds, settings.timerSeconds);
   }
 }

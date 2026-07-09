@@ -4,8 +4,28 @@ import 'package:provider/provider.dart';
 import '../../../core/models/app_settings.dart';
 import '../../../core/state/settings_controller.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late TextEditingController _noteController;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialNote = context.read<SettingsController>().settings.customNote;
+    _noteController = TextEditingController(text: initialNote);
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +90,23 @@ class SettingsScreen extends StatelessWidget {
             selected: {settings.position},
             onSelectionChanged: (value) {
               controller.update(settings.copyWith(position: value.first));
+            },
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Custom Stamp Note / Project Name',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _noteController,
+            decoration: const InputDecoration(
+              hintText: 'Enter project name or custom text...',
+              border: OutlineInputBorder(),
+              helperText: 'Stamps this custom text at the top of the photo details.',
+            ),
+            onChanged: (value) {
+              controller.update(settings.copyWith(customNote: value));
             },
           ),
           const SizedBox(height: 20),

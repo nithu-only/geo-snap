@@ -5,10 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/models/app_settings.dart';
+import '../../../core/models/gallery_photo.dart';
+import '../../../core/models/location_snapshot.dart';
+import '../../../core/state/gallery_controller.dart';
 import '../../../core/state/location_controller.dart';
 import '../../../core/state/settings_controller.dart';
-import '../../../core/models/app_settings.dart';
-import '../../../core/models/location_snapshot.dart';
+import '../../gallery/presentation/gallery_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 
 class LiveCameraScreen extends StatefulWidget {
@@ -34,6 +37,15 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
   bool _toastSuccess = true;
   Timer? _toastTimer;
 
+  // Last shot preview
+  GalleryPhoto? _lastPhoto;
+  Uint8List? _lastPhotoBytes;
+
+  // Self-Timer state
+  bool _timerActive = false;
+  int _secondsRemaining = 0;
+  Timer? _countdownTimer;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +60,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
   void dispose() {
     _flipController.dispose();
     _toastTimer?.cancel();
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
@@ -87,6 +100,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
       case 'onPhotoSaved':
         setState(() => _captureQueued = false);
         _showMessage('Photo Saved', subtitle: 'Saved to Pictures/GeoSnap/');
+        _refreshLastPhoto();
       case 'onPhotoError':
         setState(() => _captureQueued = false);
         _showMessage('Unable to Save Photo', subtitle: 'An error occurred during save', isSuccess: false);
@@ -96,6 +110,49 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
           _error = call.arguments?.toString() ?? 'Camera unavailable.';
         });
     }
+  }
+
+  void _onShutterPressed() {
+    if (_timerActive || _captureQueued) return;
+
+    final settings = context.read<SettingsController>().settings;
+    if (settings.timerSeconds == 0) {
+      _capture();
+    } else {
+      _startCountdown(settings.timerSeconds);
+    }
+  }
+
+  void _startCountdown(int seconds) {
+    _countdownTimer?.cancel();
+    setState(() {
+      _timerActive = true;
+      _secondsRemaining = seconds;
+    });
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 1) {
+        setState(() {
+          _secondsRemaining--;
+        });
+        SystemSound.play(SystemSoundType.click);
+      } else {
+        _countdownTimer?.cancel();
+        setState(() {
+          _timerActive = false;
+        });
+        _capture();
+      }
+    });
+  }
+
+  void _cancelCountdown() {
+    _countdownTimer?.cancel();
+    setState(() {
+      _timerActive = false;
+      _secondsRemaining = 0;
+    });
+    _showMessage('Timer Cancelled', subtitle: 'Photo capture aborted');
   }
 
   void _capture() {
@@ -135,7 +192,9 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'mapBytes': settings.showMapPreview
                 ? locationController.cachedMapBytes
                 : null,
-            'addressHeader': location.headerAddress,
+            'addressHeader': settings.customNote.isNotEmpty
+                ? settings.customNote
+                : location.headerAddress,
             'addressBody': location.bodyAddress,
           })
           .then((accepted) {
@@ -194,6 +253,22 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
         });
       }
     });
+  }
+
+  Future<void> _refreshLastPhoto() async {
+    final galleryController = context.read<GalleryController>();
+    await galleryController.load();
+    final photos = galleryController.photos;
+    if (photos.isNotEmpty && mounted) {
+      final newest = photos.first;
+      final bytes = await galleryController.bytesFor(newest);
+      if (mounted) {
+        setState(() {
+          _lastPhoto = newest;
+          _lastPhotoBytes = bytes;
+        });
+      }
+    }
   }
 
   @override
@@ -269,6 +344,64 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             ),
           ),
 
+        // Countdown Timer Overlay
+        if (_timerActive)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black54,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TweenAnimationBuilder<double>(
+                      key: ValueKey<int>(_secondsRemaining),
+                      tween: Tween<double>(begin: 1.5, end: 1.0),
+                      duration: const Duration(milliseconds: 600),
+                      builder: (context, scale, child) {
+                        return Transform.scale(
+                          scale: scale,
+                          child: child,
+                        );
+                      },
+                      child: Text(
+                        '$_secondsRemaining',
+                        style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontSize: 120,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 16,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white38, width: 1.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      icon: const Icon(Icons.close),
+                      label: const Text(
+                        'Cancel',
+                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
+                      onPressed: _cancelCountdown,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
         // Top Settings bar
         Positioned(
           top: 0,
@@ -298,6 +431,11 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
                 _GlassIconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.of(context).pop(),
+                ),
+                // GPS Satellite Lock Indicator
+                _GpsSatelliteIndicator(
+                  location: location,
+                  hasLock: hasLock,
                 ),
                 // Flash toggler
                 _GlassIconButton(
@@ -363,13 +501,29 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Grid or Aspect Ratio helper (left spot)
-                    const SizedBox(width: 48, height: 48),
+                    // Last shot preview thumbnail (left spot)
+                    _LastShotButton(
+                      lastPhoto: _lastPhoto,
+                      lastPhotoBytes: _lastPhotoBytes,
+                      onTap: () {
+                        if (_lastPhoto != null) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PhotoDetailScreen(photo: _lastPhoto!),
+                            ),
+                          );
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const GalleryScreen()),
+                          );
+                        }
+                      },
+                    ),
 
                     // Shutter button
                     _ShutterButton(
-                      enabled: _cameraReady && !_captureQueued && hasLock,
-                      onPressed: _capture,
+                      enabled: _cameraReady && !_captureQueued && hasLock && !_timerActive,
+                      onPressed: _onShutterPressed,
                     ),
 
                     // Camera Flip (right spot)
@@ -652,6 +806,156 @@ class _ShutterButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LastShotButton extends StatelessWidget {
+  const _LastShotButton({
+    required this.lastPhoto,
+    required this.lastPhotoBytes,
+    required this.onTap,
+  });
+
+  final GalleryPhoto? lastPhoto;
+  final Uint8List? lastPhotoBytes;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.7),
+            width: 2.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipOval(
+          child: lastPhotoBytes != null
+              ? Image.memory(
+                  lastPhotoBytes!,
+                  fit: BoxFit.cover,
+                )
+              : Container(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  child: const Icon(
+                    Icons.photo_library_outlined,
+                    color: Colors.white70,
+                    size: 26,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GpsSatelliteIndicator extends StatefulWidget {
+  const _GpsSatelliteIndicator({
+    required this.location,
+    required this.hasLock,
+  });
+
+  final LocationSnapshot? location;
+  final bool hasLock;
+
+  @override
+  State<_GpsSatelliteIndicator> createState() => _GpsSatelliteIndicatorState();
+}
+
+class _GpsSatelliteIndicatorState extends State<_GpsSatelliteIndicator> with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(_pulseController);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasGps = widget.location != null;
+    final isLocked = widget.hasLock;
+
+    final Color statusColor = !hasGps
+        ? Colors.redAccent
+        : !isLocked
+            ? Colors.orangeAccent
+            : Colors.tealAccent;
+
+    final String label = !hasGps
+        ? 'NO GPS'
+        : '${widget.location!.accuracy.toStringAsFixed(0)}m';
+
+    final IconData icon = !hasGps
+        ? Icons.gps_off
+        : !isLocked
+            ? Icons.satellite_alt
+            : Icons.gps_fixed;
+
+    Widget child = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: statusColor, size: 18),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: statusColor,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+
+    if (!isLocked) {
+      child = AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, child) {
+          return Opacity(
+            opacity: _pulseAnimation.value,
+            child: child,
+          );
+        },
+        child: child,
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: child,
     );
   }
 }

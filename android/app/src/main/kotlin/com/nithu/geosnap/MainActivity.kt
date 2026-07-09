@@ -1,4 +1,4 @@
-package com.example.geo_snap
+package com.nithu.geosnap
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

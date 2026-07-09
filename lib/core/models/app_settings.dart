@@ -18,6 +18,8 @@ class AppSettings {
     required this.flashMode,
     required this.cameraLens,
     required this.showGrid,
+    required this.customNote,
+    required this.timerSeconds,
   });
 
   factory AppSettings.defaults() => const AppSettings(
@@ -31,6 +33,8 @@ class AppSettings {
     flashMode: FlashMode.off,
     cameraLens: CameraLens.back,
     showGrid: false,
+    customNote: '',
+    timerSeconds: 0,
   );
 
   final WatermarkTemplate template;
@@ -43,6 +47,8 @@ class AppSettings {
   final FlashMode flashMode;
   final CameraLens cameraLens;
   final bool showGrid;
+  final String customNote;
+  final int timerSeconds;
 
   AppSettings copyWith({
     WatermarkTemplate? template,
@@ -55,6 +61,8 @@ class AppSettings {
     FlashMode? flashMode,
     CameraLens? cameraLens,
     bool? showGrid,
+    String? customNote,
+    int? timerSeconds,
   }) {
     return AppSettings(
       template: template ?? this.template,
@@ -67,6 +75,8 @@ class AppSettings {
       flashMode: flashMode ?? this.flashMode,
       cameraLens: cameraLens ?? this.cameraLens,
       showGrid: showGrid ?? this.showGrid,
+      customNote: customNote ?? this.customNote,
+      timerSeconds: timerSeconds ?? this.timerSeconds,
     );
   }
 }
