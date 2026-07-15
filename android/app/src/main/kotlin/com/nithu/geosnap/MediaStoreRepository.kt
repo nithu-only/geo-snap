@@ -9,15 +9,23 @@ import android.provider.MediaStore
 import java.io.OutputStream
 
 class MediaStoreRepository(private val resolver: ContentResolver) {
-    private val relativePath = Environment.DIRECTORY_PICTURES + "/GeoSnap/"
+    private val defaultRelativePath = Environment.DIRECTORY_PICTURES + "/GeoSnap/"
     private val collection =
         MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
 
-    fun createPending(filename: String): Uri {
+    private fun getRelativePath(customFolder: String?): String {
+        return if (customFolder.isNullOrBlank()) {
+            defaultRelativePath
+        } else {
+            Environment.DIRECTORY_PICTURES + "/GeoSnap/" + customFolder.trim().trim('/') + "/"
+        }
+    }
+
+    fun createPending(filename: String, customFolder: String? = null): Uri {
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, filename)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
+            put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(customFolder))
             put(MediaStore.Images.Media.IS_PENDING, 1)
         }
         return resolver.insert(collection, values)
@@ -36,8 +44,8 @@ class MediaStoreRepository(private val resolver: ContentResolver) {
         resolver.update(uri, values, null, null)
     }
 
-    fun saveBytes(bytes: ByteArray, filename: String): String {
-        val uri = createPending(filename)
+    fun saveBytes(bytes: ByteArray, filename: String, customFolder: String? = null): String {
+        val uri = createPending(filename, customFolder)
         try {
             openOutput(uri).use { it.write(bytes) }
             finishPending(uri)
@@ -48,7 +56,7 @@ class MediaStoreRepository(private val resolver: ContentResolver) {
         }
     }
 
-    fun listImages(): List<Map<String, Any>> {
+    fun listImages(customFolder: String? = null): List<Map<String, Any>> {
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
@@ -56,7 +64,7 @@ class MediaStoreRepository(private val resolver: ContentResolver) {
         )
         val results = mutableListOf<Map<String, Any>>()
         val selection = "${MediaStore.Images.Media.RELATIVE_PATH}=?"
-        val selectionArgs = arrayOf(relativePath)
+        val selectionArgs = arrayOf(getRelativePath(customFolder))
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         resolver.query(collection, projection, selection, selectionArgs, sortOrder)?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)

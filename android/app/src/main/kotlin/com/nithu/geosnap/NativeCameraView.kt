@@ -70,6 +70,7 @@ class NativeCameraView(
     private var currentFlashMode: Int = ImageCapture.FLASH_MODE_OFF
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
     private var currentDeviceRotation: Int = Surface.ROTATION_0
+    private var camera: androidx.camera.core.Camera? = null
 
     private val orientationEventListener = object : OrientationEventListener(activity) {
         override fun onOrientationChanged(orientation: Int) {
@@ -136,6 +137,28 @@ class NativeCameraView(
                 bindCamera()
                 result.success(true)
             }
+            "setZoom" -> {
+                val zoom = call.argument<Double>("zoom")?.toFloat() ?: 0f
+                camera?.cameraControl?.setLinearZoom(zoom)
+                result.success(true)
+            }
+            "focusAtPoint" -> {
+                val x = call.argument<Double>("x")?.toFloat() ?: 0.5f
+                val y = call.argument<Double>("y")?.toFloat() ?: 0.5f
+                val width = previewView.width.toFloat()
+                val height = previewView.height.toFloat()
+                if (width > 0 && height > 0) {
+                    val factory = previewView.meteringPointFactory
+                    val point = factory.createPoint(x * width, y * height)
+                    val action = androidx.camera.core.FocusMeteringAction.Builder(point, androidx.camera.core.FocusMeteringAction.FLAG_AF or androidx.camera.core.FocusMeteringAction.FLAG_AE)
+                        .setAutoCancelDuration(3, java.util.concurrent.TimeUnit.SECONDS)
+                        .build()
+                    camera?.cameraControl?.startFocusAndMetering(action)
+                    result.success(true)
+                } else {
+                    result.success(false)
+                }
+            }
             else -> result.notImplemented()
         }
     }
@@ -160,7 +183,7 @@ class NativeCameraView(
                     val cameraSelector = CameraSelector.Builder()
                         .requireLensFacing(lensFacing)
                         .build()
-                    cameraProvider.bindToLifecycle(
+                    camera = cameraProvider.bindToLifecycle(
                         activity as LifecycleOwner,
                         cameraSelector,
                         preview,

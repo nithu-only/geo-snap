@@ -20,8 +20,11 @@ class StorageService {
     return uri;
   }
 
-  Future<List<GalleryPhoto>> listPhotos() async {
-    final raw = await _channel.invokeMethod<List<dynamic>>('listImages');
+  Future<List<GalleryPhoto>> listPhotos({String? saveFolder, String? saveFolderUri}) async {
+    final raw = await _channel.invokeMethod<List<dynamic>>('listImages', {
+      'saveFolder': saveFolder,
+      'saveFolderUri': saveFolderUri,
+    });
     return (raw ?? const [])
         .cast<Map<dynamic, dynamic>>()
         .map(
@@ -42,6 +45,18 @@ class StorageService {
     });
     if (bytes == null) {
       throw StateError('Unable to read image.');
+    }
+    return bytes;
+  }
+
+  Future<Uint8List> readThumbnail(String uri, {int width = 250, int height = 250}) async {
+    final bytes = await _channel.invokeMethod<Uint8List>('readThumbnail', {
+      'uri': uri,
+      'width': width,
+      'height': height,
+    });
+    if (bytes == null) {
+      return Uint8List(0);
     }
     return bytes;
   }

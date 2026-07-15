@@ -13,17 +13,20 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _noteController;
+  late TextEditingController _folderController;
 
   @override
   void initState() {
     super.initState();
-    final initialNote = context.read<SettingsController>().settings.customNote;
-    _noteController = TextEditingController(text: initialNote);
+    final settings = context.read<SettingsController>().settings;
+    _noteController = TextEditingController(text: settings.customNote);
+    _folderController = TextEditingController(text: settings.saveFolder);
   }
 
   @override
   void dispose() {
     _noteController.dispose();
+    _folderController.dispose();
     super.dispose();
   }
 
@@ -107,6 +110,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             onChanged: (value) {
               controller.update(settings.copyWith(customNote: value));
+            },
+          ),
+          const SizedBox(height: 20),
+          if (settings.saveFolderUri.isNotEmpty) ...[
+            ListTile(
+              tileColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              leading: Icon(Icons.folder_shared, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Active Device Folder'),
+              subtitle: Text(settings.saveFolderLabel),
+              trailing: IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  controller.update(
+                    settings.copyWith(
+                      saveFolderUri: '',
+                      saveFolderLabel: '',
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+          Text(
+            'Default Save Folder Name',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _folderController,
+            decoration: const InputDecoration(
+              hintText: 'Enter folder name (e.g. Project-A)...',
+              border: OutlineInputBorder(),
+              helperText: 'Images will be saved under Pictures/GeoSnap/<folder_name>/',
+            ),
+            onChanged: (value) {
+              final clean = value.trim();
+              controller.update(settings.copyWith(saveFolder: clean));
+              if (clean.isNotEmpty) {
+                controller.addFolder(clean);
+              }
             },
           ),
           const SizedBox(height: 20),

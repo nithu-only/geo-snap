@@ -15,6 +15,9 @@ class SettingsService {
   static const _showGrid = 'showGrid';
   static const _customNote = 'customNote';
   static const _timerSeconds = 'timerSeconds';
+  static const _saveFolder = 'saveFolder';
+  static const _saveFolderUri = 'saveFolderUri';
+  static const _saveFolderLabel = 'saveFolderLabel';
 
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -38,6 +41,9 @@ class SettingsService {
       showGrid: prefs.getBool(_showGrid) ?? defaults.showGrid,
       customNote: prefs.getString(_customNote) ?? defaults.customNote,
       timerSeconds: prefs.getInt(_timerSeconds) ?? defaults.timerSeconds,
+      saveFolder: prefs.getString(_saveFolder) ?? defaults.saveFolder,
+      saveFolderUri: prefs.getString(_saveFolderUri) ?? defaults.saveFolderUri,
+      saveFolderLabel: prefs.getString(_saveFolderLabel) ?? defaults.saveFolderLabel,
     );
   }
 
@@ -55,5 +61,18 @@ class SettingsService {
     await prefs.setBool(_showGrid, settings.showGrid);
     await prefs.setString(_customNote, settings.customNote);
     await prefs.setInt(_timerSeconds, settings.timerSeconds);
+    await prefs.setString(_saveFolder, settings.saveFolder);
+    await prefs.setString(_saveFolderUri, settings.saveFolderUri);
+    await prefs.setString(_saveFolderLabel, settings.saveFolderLabel);
+  }
+
+  Future<List<String>> loadCustomFolders() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('customFolders') ?? <String>[];
+  }
+
+  Future<void> saveCustomFolders(List<String> folders) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('customFolders', folders);
   }
 }

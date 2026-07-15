@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/gallery_photo.dart';
 import '../../../core/state/gallery_controller.dart';
+import '../../../core/state/settings_controller.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -13,11 +14,21 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
+  String _selectedFolder = '';
+
   @override
   void initState() {
     super.initState();
+    final settings = context.read<SettingsController>().settings;
+    _selectedFolder = settings.saveFolderUri.isNotEmpty
+        ? settings.saveFolderUri
+        : settings.saveFolder;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GalleryController>().load();
+      if (_selectedFolder.startsWith('content://')) {
+        context.read<GalleryController>().load(saveFolderUri: _selectedFolder);
+      } else {
+        context.read<GalleryController>().load(saveFolder: _selectedFolder);
+      }
     });
   }
 
@@ -25,42 +36,109 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget build(BuildContext context) {
     final controller = context.watch<GalleryController>();
     final photos = controller.photos;
+    final settings = context.watch<SettingsController>().settings;
+    final folders = context.watch<SettingsController>().folders;
+
+    String displayTitle = 'Gallery';
+    if (_selectedFolder.isNotEmpty) {
+      if (_selectedFolder == settings.saveFolderUri) {
+        displayTitle = settings.saveFolderLabel;
+      } else {
+        displayTitle = _selectedFolder;
+      }
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Gallery')),
+      appBar: AppBar(
+        title: Text(displayTitle),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.folder_open_outlined),
+            tooltip: 'Filter by folder',
+            initialValue: _selectedFolder,
+            onSelected: (folder) {
+              setState(() {
+                _selectedFolder = folder;
+              });
+              if (folder.startsWith('content://')) {
+                context.read<GalleryController>().load(saveFolderUri: folder);
+              } else {
+                context.read<GalleryController>().load(saveFolder: folder);
+              }
+            },
+            itemBuilder: (context) {
+              return [
+                if (settings.saveFolderUri.isNotEmpty)
+                  PopupMenuItem(
+                    value: settings.saveFolderUri,
+                    child: Text('Device: ${settings.saveFolderLabel}'),
+                  ),
+                const PopupMenuItem(
+                  value: '',
+                  child: Text('Default (Root)'),
+                ),
+                ...folders.map(
+                  (f) => PopupMenuItem(
+                    value: f,
+                    child: Text(f),
+                  ),
+                ),
+              ];
+            },
+          ),
+        ],
+      ),
       body: RefreshIndicator(
-        onRefresh: controller.load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            SearchBar(
-              hintText: 'Search by date',
-              leading: const Icon(Icons.search),
-              onChanged: controller.search,
+        onRefresh: () {
+          if (_selectedFolder.startsWith('content://')) {
+            return controller.load(saveFolderUri: _selectedFolder);
+          } else {
+            return controller.load(saveFolder: _selectedFolder);
+          }
+        },
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  SearchBar(
+                    hintText: 'Search by date',
+                    leading: const Icon(Icons.search),
+                    onChanged: controller.search,
+                  ),
+                  const SizedBox(height: 16),
+                ]),
+              ),
             ),
-            const SizedBox(height: 16),
             if (controller.loading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
+              const SliverFillRemaining(
+                child: Center(
                   child: CircularProgressIndicator(),
                 ),
               )
             else if (photos.isEmpty)
-              const _EmptyGallery()
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptyGallery(),
+              )
             else
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.78,
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.78,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _PhotoTile(photo: photos[index]),
+                    childCount: photos.length,
+                  ),
                 ),
-                itemCount: photos.length,
-                itemBuilder: (context, index) =>
-                    _PhotoTile(photo: photos[index]),
               ),
+            const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
           ],
         ),
       ),
@@ -87,7 +165,7 @@ class _PhotoTile extends StatelessWidget {
           children: [
             Expanded(
               child: FutureBuilder(
-                future: controller.bytesFor(photo),
+                future: controller.thumbnailFor(photo),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());

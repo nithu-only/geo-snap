@@ -13,6 +13,8 @@ class GalleryController extends ChangeNotifier {
   List<GalleryPhoto> _photos = const [];
   String _query = '';
   bool _loading = false;
+  String? _lastSaveFolder;
+  String? _lastSaveFolderUri;
 
   List<GalleryPhoto> get photos {
     if (_query.trim().isEmpty) {
@@ -30,11 +32,16 @@ class GalleryController extends ChangeNotifier {
   bool get loading => _loading;
   String get query => _query;
 
-  Future<void> load() async {
+  final Map<String, Uint8List> _thumbnailCache = {};
+
+  Future<void> load({String? saveFolder, String? saveFolderUri}) async {
+    _lastSaveFolder = saveFolder;
+    _lastSaveFolderUri = saveFolderUri;
     _loading = true;
+    _thumbnailCache.clear();
     notifyListeners();
     await _requestMediaPermission();
-    _photos = await _storageService.listPhotos();
+    _photos = await _storageService.listPhotos(saveFolder: saveFolder, saveFolderUri: saveFolderUri);
     _loading = false;
     notifyListeners();
   }
@@ -47,9 +54,19 @@ class GalleryController extends ChangeNotifier {
   Future<Uint8List> bytesFor(GalleryPhoto photo) =>
       _storageService.readBytes(photo.uri);
 
+  Future<Uint8List> thumbnailFor(GalleryPhoto photo) async {
+    final cached = _thumbnailCache[photo.uri];
+    if (cached != null) {
+      return cached;
+    }
+    final bytes = await _storageService.readThumbnail(photo.uri);
+    _thumbnailCache[photo.uri] = bytes;
+    return bytes;
+  }
+
   Future<void> delete(GalleryPhoto photo) async {
     await _storageService.delete(photo.uri);
-    await load();
+    await load(saveFolder: _lastSaveFolder, saveFolderUri: _lastSaveFolderUri);
   }
 
   Future<void> share(GalleryPhoto photo) => _storageService.share(photo);

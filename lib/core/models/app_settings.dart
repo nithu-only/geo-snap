@@ -20,6 +20,9 @@ class AppSettings {
     required this.showGrid,
     required this.customNote,
     required this.timerSeconds,
+    required this.saveFolder,
+    required this.saveFolderUri,
+    required this.saveFolderLabel,
   });
 
   factory AppSettings.defaults() => const AppSettings(
@@ -35,6 +38,9 @@ class AppSettings {
     showGrid: false,
     customNote: '',
     timerSeconds: 0,
+    saveFolder: '',
+    saveFolderUri: '',
+    saveFolderLabel: '',
   );
 
   final WatermarkTemplate template;
@@ -49,6 +55,9 @@ class AppSettings {
   final bool showGrid;
   final String customNote;
   final int timerSeconds;
+  final String saveFolder;
+  final String saveFolderUri;
+  final String saveFolderLabel;
 
   AppSettings copyWith({
     WatermarkTemplate? template,
@@ -63,6 +72,9 @@ class AppSettings {
     bool? showGrid,
     String? customNote,
     int? timerSeconds,
+    String? saveFolder,
+    String? saveFolderUri,
+    String? saveFolderLabel,
   }) {
     return AppSettings(
       template: template ?? this.template,
@@ -77,6 +89,9 @@ class AppSettings {
       showGrid: showGrid ?? this.showGrid,
       customNote: customNote ?? this.customNote,
       timerSeconds: timerSeconds ?? this.timerSeconds,
+      saveFolder: saveFolder ?? this.saveFolder,
+      saveFolderUri: saveFolderUri ?? this.saveFolderUri,
+      saveFolderLabel: saveFolderLabel ?? this.saveFolderLabel,
     );
   }
 }

@@ -11,6 +11,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.location.Location
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.text.SimpleDateFormat
@@ -36,9 +37,11 @@ data class CaptureMetadata(
     val mapBytes: ByteArray?,
     val addressHeader: String?,
     val addressBody: String?,
+    val saveFolder: String?,
+    val saveFolderUri: String?,
 ) {
     companion object {
-        fun from(arguments: Map<*, *>): CaptureMetadata {
+        fun from(arguments: Map<*, *>) : CaptureMetadata {
             return CaptureMetadata(
                 latitude = (arguments["latitude"] as Number).toDouble(),
                 longitude = (arguments["longitude"] as Number).toDouble(),
@@ -56,6 +59,8 @@ data class CaptureMetadata(
                 mapBytes = arguments["mapBytes"] as? ByteArray,
                 addressHeader = arguments["addressHeader"] as? String,
                 addressBody = arguments["addressBody"] as? String,
+                saveFolder = arguments["saveFolder"] as? String,
+                saveFolderUri = arguments["saveFolderUri"] as? String,
             )
         }
     }
@@ -101,7 +106,14 @@ class WatermarkProcessor(
         drawWatermark(bitmap, metadata)
 
         val filename = "IMG_${filenameFormat.format(Date(metadata.capturedAtMillis))}.jpg"
-        val destination = mediaStore.createPending(filename)
+        val destination = if (!metadata.saveFolderUri.isNullOrBlank()) {
+            val treeUri = Uri.parse(metadata.saveFolderUri)
+            val rootDocUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri))
+            DocumentsContract.createDocument(resolver, rootDocUri, "image/jpeg", filename)
+                ?: throw IllegalStateException("Unable to create document in picked folder.")
+        } else {
+            mediaStore.createPending(filename, metadata.saveFolder)
+        }
         try {
             mediaStore.openOutput(destination).use { output ->
                 if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 94, output)) {
@@ -109,7 +121,9 @@ class WatermarkProcessor(
                 }
             }
             restoreExif(sourceExif, destination, bitmap, metadata)
-            mediaStore.finishPending(destination)
+            if (metadata.saveFolderUri.isNullOrBlank()) {
+                mediaStore.finishPending(destination)
+            }
             return destination.toString()
         } catch (error: Exception) {
             resolver.delete(destination, null, null)
@@ -409,7 +423,11 @@ class WatermarkProcessor(
             return bitmap
         }
         val matrix = Matrix().apply { postRotate(degrees) }
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        bitmap.recycle()
+        val mutable = rotated.copy(Bitmap.Config.ARGB_8888, true)
+        rotated.recycle()
+        return mutable
     }
 
     private fun restoreExif(
