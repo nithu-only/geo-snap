@@ -209,6 +209,8 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'showCoordinates': settings.showCoordinates,
             'showAccuracy': settings.showAccuracy,
             'showMapPreview': settings.showMapPreview,
+            'showAltitude': settings.showAltitude,
+            'showTimestamp': settings.showTimestamp,
             'mapBytes': settings.showMapPreview
                 ? locationController.cachedMapBytes
                 : null,

@@ -59,6 +59,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: WatermarkTemplate.gpsMapCamera,
                 label: Text('GPS'),
               ),
+              ButtonSegment(
+                value: WatermarkTemplate.minimal,
+                label: Text('Minimal'),
+              ),
             ],
             selected: {settings.template},
             onSelectionChanged: (value) {
@@ -207,6 +211,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Show Map Preview'),
             onChanged: (value) =>
                 controller.update(settings.copyWith(showMapPreview: value)),
+          ),
+          SwitchListTile(
+            value: settings.showAltitude,
+            title: const Text('Show Altitude'),
+            onChanged: (value) =>
+                controller.update(settings.copyWith(showAltitude: value)),
+          ),
+          SwitchListTile(
+            value: settings.showTimestamp,
+            title: const Text('Show Timestamp'),
+            onChanged: (value) =>
+                controller.update(settings.copyWith(showTimestamp: value)),
           ),
           const Divider(height: 32),
           Text(

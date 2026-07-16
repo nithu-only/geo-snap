@@ -1,7 +1,7 @@
 name: geo_snap
 description: Don't Just Snap. GeoSnap - A private offline-first GPS camera for Android.
 publish_to: "none"
-version: 1.2.0+3
+version: 1.3.0+4
 
 environment:
   sdk: ">=3.12.0 <4.0.0"

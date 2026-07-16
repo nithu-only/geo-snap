@@ -1,4 +1,4 @@
-enum WatermarkTemplate { compact, largePanel, gpsMapCamera }
+enum WatermarkTemplate { compact, largePanel, gpsMapCamera, minimal }
 
 enum WatermarkPosition { topLeft, topRight, bottomLeft, bottomRight }
 
@@ -15,6 +15,8 @@ class AppSettings {
     required this.showCoordinates,
     required this.showAccuracy,
     required this.showMapPreview,
+    required this.showAltitude,
+    required this.showTimestamp,
     required this.flashMode,
     required this.cameraLens,
     required this.showGrid,
@@ -33,6 +35,8 @@ class AppSettings {
     showCoordinates: true,
     showAccuracy: true,
     showMapPreview: true,
+    showAltitude: true,
+    showTimestamp: true,
     flashMode: FlashMode.off,
     cameraLens: CameraLens.back,
     showGrid: false,
@@ -50,6 +54,8 @@ class AppSettings {
   final bool showCoordinates;
   final bool showAccuracy;
   final bool showMapPreview;
+  final bool showAltitude;
+  final bool showTimestamp;
   final FlashMode flashMode;
   final CameraLens cameraLens;
   final bool showGrid;
@@ -67,6 +73,8 @@ class AppSettings {
     bool? showCoordinates,
     bool? showAccuracy,
     bool? showMapPreview,
+    bool? showAltitude,
+    bool? showTimestamp,
     FlashMode? flashMode,
     CameraLens? cameraLens,
     bool? showGrid,
@@ -84,6 +92,8 @@ class AppSettings {
       showCoordinates: showCoordinates ?? this.showCoordinates,
       showAccuracy: showAccuracy ?? this.showAccuracy,
       showMapPreview: showMapPreview ?? this.showMapPreview,
+      showAltitude: showAltitude ?? this.showAltitude,
+      showTimestamp: showTimestamp ?? this.showTimestamp,
       flashMode: flashMode ?? this.flashMode,
       cameraLens: cameraLens ?? this.cameraLens,
       showGrid: showGrid ?? this.showGrid,

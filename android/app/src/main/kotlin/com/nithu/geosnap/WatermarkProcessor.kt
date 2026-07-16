@@ -34,6 +34,8 @@ data class CaptureMetadata(
     val showCoordinates: Boolean,
     val showAccuracy: Boolean,
     val showMapPreview: Boolean,
+    val showAltitude: Boolean,
+    val showTimestamp: Boolean,
     val mapBytes: ByteArray?,
     val addressHeader: String?,
     val addressBody: String?,
@@ -56,6 +58,8 @@ data class CaptureMetadata(
                 showCoordinates = arguments["showCoordinates"] as Boolean,
                 showAccuracy = arguments["showAccuracy"] as Boolean,
                 showMapPreview = arguments["showMapPreview"] as Boolean,
+                showAltitude = arguments["showAltitude"] as? Boolean ?: true,
+                showTimestamp = arguments["showTimestamp"] as? Boolean ?: true,
                 mapBytes = arguments["mapBytes"] as? ByteArray,
                 addressHeader = arguments["addressHeader"] as? String,
                 addressBody = arguments["addressBody"] as? String,
@@ -151,14 +155,22 @@ class WatermarkProcessor(
             drawGpsMapCameraWatermark(bitmap, metadata, scale, margin, padding, radius)
             return
         }
+        if (metadata.template == 3) {
+            drawMinimalWatermark(bitmap, metadata, scale, margin, padding)
+            return
+        }
 
         val canvas = Canvas(bitmap)
         val lineHeight = 34f * scale
         textPaint.textSize = 24f * scale
         titlePaint.textSize = 28f * scale
 
-        val lines = ArrayList<String>(4)
-        lines.add(if (metadata.showAddress) metadata.address else "GeoSnap")
+        val lines = ArrayList<String>()
+        if (metadata.showAddress) {
+            lines.add(metadata.addressHeader ?: metadata.address)
+        } else {
+            lines.add("GeoSnap")
+        }
         if (metadata.showCoordinates) {
             lines.add(
                 String.format(
@@ -169,7 +181,12 @@ class WatermarkProcessor(
                 ),
             )
         }
-        lines.add(timestampFormat(metadata.timestampPattern).format(Date(metadata.capturedAtMillis)))
+        if (metadata.showAltitude) {
+            lines.add(String.format(Locale.US, "Alt: %.1fm", metadata.altitude))
+        }
+        if (metadata.showTimestamp) {
+            lines.add(timestampFormat(metadata.timestampPattern).format(Date(metadata.capturedAtMillis)))
+        }
         if (metadata.showAccuracy) {
             lines.add("Accuracy: ${metadata.accuracy.toInt()}m")
         }
@@ -257,6 +274,9 @@ class WatermarkProcessor(
         if (metadata.showCoordinates) {
             coordParts.add(String.format(Locale.US, "Lat %.6f° Long %.6f°", metadata.latitude, metadata.longitude))
         }
+        if (metadata.showAltitude) {
+            coordParts.add(String.format(Locale.US, "Alt %.1fm", metadata.altitude))
+        }
         if (metadata.showAccuracy) {
             coordParts.add(String.format(Locale.US, "Accuracy: %.0fm", metadata.accuracy))
         }
@@ -264,16 +284,18 @@ class WatermarkProcessor(
             lines.add(coordParts.joinToString("   "))
         }
 
-        val sdf = SimpleDateFormat("EEEE, dd/MM/yyyy hh:mm a", Locale.US)
-        val formattedDate = sdf.format(Date(metadata.capturedAtMillis))
-        val tz = java.util.TimeZone.getDefault()
-        val offsetMillis = tz.getOffset(metadata.capturedAtMillis)
-        val offsetHours = Math.abs(offsetMillis / 3600000)
-        val offsetMinutes = Math.abs((offsetMillis % 3600000) / 60000)
-        val sign = if (offsetMillis >= 0) "+" else "-"
-        val tzOffsetStr = String.format("GMT %s%02d:%02d", sign, offsetHours, offsetMinutes)
-        val finalTimestamp = "$formattedDate $tzOffsetStr"
-        lines.add(finalTimestamp)
+        if (metadata.showTimestamp) {
+            val sdf = SimpleDateFormat("EEEE, dd/MM/yyyy hh:mm a", Locale.US)
+            val formattedDate = sdf.format(Date(metadata.capturedAtMillis))
+            val tz = java.util.TimeZone.getDefault()
+            val offsetMillis = tz.getOffset(metadata.capturedAtMillis)
+            val offsetHours = Math.abs(offsetMillis / 3600000)
+            val offsetMinutes = Math.abs((offsetMillis % 3600000) / 60000)
+            val sign = if (offsetMillis >= 0) "+" else "-"
+            val tzOffsetStr = String.format("GMT %s%02d:%02d", sign, offsetHours, offsetMinutes)
+            val finalTimestamp = "$formattedDate $tzOffsetStr"
+            lines.add(finalTimestamp)
+        }
 
         val map = if (metadata.showMapPreview && metadata.mapBytes != null) {
             try {
@@ -355,6 +377,74 @@ class WatermarkProcessor(
         }
 
         map?.recycle()
+    }
+
+    private fun drawMinimalWatermark(
+        bitmap: Bitmap,
+        metadata: CaptureMetadata,
+        scale: Float,
+        margin: Float,
+        padding: Float
+    ) {
+        val canvas = Canvas(bitmap)
+        val lineHeight = 34f * scale
+
+        val alignRight = (metadata.position == 1 || metadata.position == 3)
+        
+        val textPaintLocal = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(240, 240, 240)
+            textSize = 24f * scale
+            typeface = android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL)
+            textAlign = if (alignRight) Paint.Align.RIGHT else Paint.Align.LEFT
+            setShadowLayer(4f * scale, 2f * scale, 2f * scale, Color.argb(200, 0, 0, 0))
+        }
+        val titlePaintLocal = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = 28f * scale
+            typeface = android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD)
+            textAlign = if (alignRight) Paint.Align.RIGHT else Paint.Align.LEFT
+            setShadowLayer(4f * scale, 2f * scale, 2f * scale, Color.argb(200, 0, 0, 0))
+        }
+
+        val lines = ArrayList<String>()
+        if (metadata.showAddress) {
+            lines.add(metadata.addressHeader ?: metadata.address)
+        } else {
+            lines.add("GeoSnap")
+        }
+        if (metadata.showCoordinates) {
+            lines.add(
+                String.format(
+                    Locale.US,
+                    "Lat %.6f  Long %.6f",
+                    metadata.latitude,
+                    metadata.longitude,
+                ),
+            )
+        }
+        if (metadata.showAltitude) {
+            lines.add(String.format(Locale.US, "Alt: %.1fm", metadata.altitude))
+        }
+        if (metadata.showTimestamp) {
+            lines.add(timestampFormat(metadata.timestampPattern).format(Date(metadata.capturedAtMillis)))
+        }
+        if (metadata.showAccuracy) {
+            lines.add("Accuracy: ${metadata.accuracy.toInt()}m")
+        }
+
+        val x = if (alignRight) bitmap.width - margin else margin
+        val textBlockHeight = lines.size * lineHeight
+
+        lines.forEachIndexed { index, value ->
+            val paint = if (index == 0) titlePaintLocal else textPaintLocal
+            val baseline = if (metadata.position >= 2) {
+                val topOfBlock = bitmap.height - margin - textBlockHeight
+                topOfBlock - paint.fontMetrics.top + index * lineHeight
+            } else {
+                margin - paint.fontMetrics.top + index * lineHeight
+            }
+            canvas.drawText(value, x, baseline, paint)
+        }
     }
 
     private fun drawLocationPin(canvas: Canvas, rect: RectF, scale: Float) {

@@ -10,6 +10,8 @@ class SettingsService {
   static const _showCoordinates = 'showCoordinates';
   static const _showAccuracy = 'showAccuracy';
   static const _showMapPreview = 'showMapPreview';
+  static const _showAltitude = 'showAltitude';
+  static const _showTimestamp = 'showTimestamp';
   static const _flashMode = 'flashMode';
   static const _cameraLens = 'cameraLens';
   static const _showGrid = 'showGrid';
@@ -34,6 +36,8 @@ class SettingsService {
           prefs.getBool(_showCoordinates) ?? defaults.showCoordinates,
       showAccuracy: prefs.getBool(_showAccuracy) ?? defaults.showAccuracy,
       showMapPreview: prefs.getBool(_showMapPreview) ?? defaults.showMapPreview,
+      showAltitude: prefs.getBool(_showAltitude) ?? defaults.showAltitude,
+      showTimestamp: prefs.getBool(_showTimestamp) ?? defaults.showTimestamp,
       flashMode: FlashMode
           .values[prefs.getInt(_flashMode) ?? defaults.flashMode.index],
       cameraLens: CameraLens
@@ -56,6 +60,8 @@ class SettingsService {
     await prefs.setBool(_showCoordinates, settings.showCoordinates);
     await prefs.setBool(_showAccuracy, settings.showAccuracy);
     await prefs.setBool(_showMapPreview, settings.showMapPreview);
+    await prefs.setBool(_showAltitude, settings.showAltitude);
+    await prefs.setBool(_showTimestamp, settings.showTimestamp);
     await prefs.setInt(_flashMode, settings.flashMode.index);
     await prefs.setInt(_cameraLens, settings.cameraLens.index);
     await prefs.setBool(_showGrid, settings.showGrid);
