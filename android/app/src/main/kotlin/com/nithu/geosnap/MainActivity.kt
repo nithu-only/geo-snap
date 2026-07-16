@@ -5,6 +5,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import androidx.exifinterface.media.ExifInterface
 
 class MainActivity : FlutterActivity() {
     private var locationTracker: FusedLocationTracker? = null
@@ -158,13 +159,30 @@ class MainActivity : FlutterActivity() {
                     while (cursor.moveToNext()) {
                         val childDocId = cursor.getString(idCol)
                         val childUri = android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, childDocId)
-                        results.add(
-                            mapOf(
-                                "uri" to childUri.toString(),
-                                "name" to (cursor.getString(nameCol) ?: "image.jpg"),
-                                "dateMillis" to cursor.getLong(dateCol),
-                            )
+                        
+                        var latitude: Double? = null
+                        var longitude: Double? = null
+                        try {
+                            contentResolver.openFileDescriptor(childUri, "r")?.use { fd ->
+                                val exifInterface = ExifInterface(fd.fileDescriptor)
+                                val latLong = exifInterface.latLong
+                                if (latLong != null) {
+                                    latitude = latLong[0]
+                                    longitude = latLong[1]
+                                }
+                            }
+                        } catch (e: Exception) {}
+
+                        val itemMap = mutableMapOf<String, Any>(
+                            "uri" to childUri.toString(),
+                            "name" to (cursor.getString(nameCol) ?: "image.jpg"),
+                            "dateMillis" to cursor.getLong(dateCol)
                         )
+                        if (latitude != null && longitude != null) {
+                            itemMap["latitude"] = latitude!!
+                            itemMap["longitude"] = longitude!!
+                        }
+                        results.add(itemMap)
                     }
                 }
             }

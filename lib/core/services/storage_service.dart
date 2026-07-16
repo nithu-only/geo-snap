@@ -34,6 +34,8 @@ class StorageService {
             createdAt: DateTime.fromMillisecondsSinceEpoch(
               (item['dateMillis'] as num).toInt(),
             ),
+            latitude: item['latitude'] != null ? (item['latitude'] as num).toDouble() : null,
+            longitude: item['longitude'] != null ? (item['longitude'] as num).toDouble() : null,
           ),
         )
         .toList();

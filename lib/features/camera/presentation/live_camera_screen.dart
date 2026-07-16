@@ -722,11 +722,14 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
                       lastPhotoBytes: _lastPhotoBytes,
                       onTap: () {
                         if (_lastPhoto != null) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => PhotoDetailScreen(photo: _lastPhoto!),
-                            ),
-                          );
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => PhotoDetailScreen(
+                                  photos: [_lastPhoto!],
+                                  initialIndex: 0,
+                                ),
+                              ),
+                            );
                         } else {
                           Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const GalleryScreen()),

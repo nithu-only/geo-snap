@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.exifinterface.media.ExifInterface
 import java.io.OutputStream
 
 class MediaStoreRepository(private val resolver: ContentResolver) {
@@ -72,13 +73,31 @@ class MediaStoreRepository(private val resolver: ContentResolver) {
             val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
-                results.add(
-                    mapOf(
-                        "uri" to ContentUris.withAppendedId(collection, id).toString(),
-                        "name" to (cursor.getString(nameColumn) ?: "image.jpg"),
-                        "dateMillis" to cursor.getLong(dateColumn) * 1_000L,
-                    ),
+                val uri = ContentUris.withAppendedId(collection, id)
+                
+                var latitude: Double? = null
+                var longitude: Double? = null
+                try {
+                    resolver.openFileDescriptor(uri, "r")?.use { fd ->
+                        val exifInterface = ExifInterface(fd.fileDescriptor)
+                        val latLong = exifInterface.latLong
+                        if (latLong != null) {
+                            latitude = latLong[0]
+                            longitude = latLong[1]
+                        }
+                    }
+                } catch (e: Exception) { }
+
+                val itemMap = mutableMapOf<String, Any>(
+                    "uri" to uri.toString(),
+                    "name" to (cursor.getString(nameColumn) ?: "image.jpg"),
+                    "dateMillis" to cursor.getLong(dateColumn) * 1_000L
                 )
+                if (latitude != null && longitude != null) {
+                    itemMap["latitude"] = latitude!!
+                    itemMap["longitude"] = longitude!!
+                }
+                results.add(itemMap)
             }
         }
         return results
