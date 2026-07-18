@@ -17,6 +17,10 @@ class AppSettings {
     required this.showMapPreview,
     required this.showAltitude,
     required this.showTimestamp,
+    required this.watermarkTextColor,
+    required this.watermarkBgColor,
+    required this.watermarkBgOpacity,
+    required this.watermarkFontScale,
     required this.flashMode,
     required this.cameraLens,
     required this.showGrid,
@@ -37,6 +41,10 @@ class AppSettings {
     showMapPreview: true,
     showAltitude: true,
     showTimestamp: true,
+    watermarkTextColor: 'white',
+    watermarkBgColor: 'black',
+    watermarkBgOpacity: 0.75,
+    watermarkFontScale: 1.0,
     flashMode: FlashMode.off,
     cameraLens: CameraLens.back,
     showGrid: false,
@@ -56,6 +64,10 @@ class AppSettings {
   final bool showMapPreview;
   final bool showAltitude;
   final bool showTimestamp;
+  final String watermarkTextColor;
+  final String watermarkBgColor;
+  final double watermarkBgOpacity;
+  final double watermarkFontScale;
   final FlashMode flashMode;
   final CameraLens cameraLens;
   final bool showGrid;
@@ -75,6 +87,10 @@ class AppSettings {
     bool? showMapPreview,
     bool? showAltitude,
     bool? showTimestamp,
+    String? watermarkTextColor,
+    String? watermarkBgColor,
+    double? watermarkBgOpacity,
+    double? watermarkFontScale,
     FlashMode? flashMode,
     CameraLens? cameraLens,
     bool? showGrid,
@@ -94,6 +110,10 @@ class AppSettings {
       showMapPreview: showMapPreview ?? this.showMapPreview,
       showAltitude: showAltitude ?? this.showAltitude,
       showTimestamp: showTimestamp ?? this.showTimestamp,
+      watermarkTextColor: watermarkTextColor ?? this.watermarkTextColor,
+      watermarkBgColor: watermarkBgColor ?? this.watermarkBgColor,
+      watermarkBgOpacity: watermarkBgOpacity ?? this.watermarkBgOpacity,
+      watermarkFontScale: watermarkFontScale ?? this.watermarkFontScale,
       flashMode: flashMode ?? this.flashMode,
       cameraLens: cameraLens ?? this.cameraLens,
       showGrid: showGrid ?? this.showGrid,

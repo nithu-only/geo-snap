@@ -36,6 +36,10 @@ data class CaptureMetadata(
     val showMapPreview: Boolean,
     val showAltitude: Boolean,
     val showTimestamp: Boolean,
+    val textColor: String,
+    val bgColor: String,
+    val bgOpacity: Double,
+    val fontScale: Double,
     val mapBytes: ByteArray?,
     val addressHeader: String?,
     val addressBody: String?,
@@ -60,6 +64,10 @@ data class CaptureMetadata(
                 showMapPreview = arguments["showMapPreview"] as Boolean,
                 showAltitude = arguments["showAltitude"] as? Boolean ?: true,
                 showTimestamp = arguments["showTimestamp"] as? Boolean ?: true,
+                textColor = arguments["textColor"] as? String ?: "white",
+                bgColor = arguments["bgColor"] as? String ?: "black",
+                bgOpacity = (arguments["bgOpacity"] as? Number)?.toDouble() ?: 0.75,
+                fontScale = (arguments["fontScale"] as? Number)?.toDouble() ?: 1.0,
                 mapBytes = arguments["mapBytes"] as? ByteArray,
                 addressHeader = arguments["addressHeader"] as? String,
                 addressBody = arguments["addressBody"] as? String,
@@ -161,9 +169,38 @@ class WatermarkProcessor(
         }
 
         val canvas = Canvas(bitmap)
-        val lineHeight = 34f * scale
-        textPaint.textSize = 24f * scale
-        titlePaint.textSize = 28f * scale
+        val fontScale = metadata.fontScale.toFloat()
+        val lineHeight = 34f * scale * fontScale
+        
+        val panelAlpha = (metadata.bgOpacity * 255).toInt()
+        val panelColor = when (metadata.bgColor) {
+            "white" -> Color.argb(panelAlpha, 255, 255, 255)
+            "transparent" -> Color.argb(0, 0, 0, 0)
+            else -> Color.argb(panelAlpha, 0, 0, 0) // "black"
+        }
+        panelPaint.color = panelColor
+
+        val titleColor: Int
+        val textColorVal: Int
+        when (metadata.textColor) {
+            "black" -> {
+                titleColor = Color.BLACK
+                textColorVal = Color.rgb(40, 45, 50)
+            }
+            "yellow" -> {
+                titleColor = Color.rgb(255, 198, 41)
+                textColorVal = Color.rgb(255, 218, 100)
+            }
+            else -> { // "white"
+                titleColor = Color.WHITE
+                textColorVal = Color.rgb(225, 232, 235)
+            }
+        }
+        titlePaint.color = titleColor
+        textPaint.color = textColorVal
+        
+        textPaint.textSize = 24f * scale * fontScale
+        titlePaint.textSize = 28f * scale * fontScale
 
         val lines = ArrayList<String>()
         if (metadata.showAddress) {
@@ -247,14 +284,40 @@ class WatermarkProcessor(
     ) {
         val canvas = Canvas(bitmap)
         
+        val panelAlpha = (metadata.bgOpacity * 255).toInt()
+        val panelColor = when (metadata.bgColor) {
+            "white" -> Color.argb(panelAlpha, 255, 255, 255)
+            "transparent" -> Color.argb(0, 0, 0, 0)
+            else -> Color.argb(panelAlpha, 0, 0, 0) // "black"
+        }
+        panelPaint.color = panelColor
+
+        val titleColor: Int
+        val textColorVal: Int
+        when (metadata.textColor) {
+            "black" -> {
+                titleColor = Color.BLACK
+                textColorVal = Color.rgb(40, 45, 50)
+            }
+            "yellow" -> {
+                titleColor = Color.rgb(255, 198, 41)
+                textColorVal = Color.rgb(255, 218, 100)
+            }
+            else -> { // "white"
+                titleColor = Color.WHITE
+                textColorVal = Color.rgb(225, 232, 235)
+            }
+        }
+
+        val fontScale = metadata.fontScale.toFloat()
         val textPaintLocal = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.rgb(225, 232, 235)
-            textSize = 22f * scale
+            color = textColorVal
+            textSize = 22f * scale * fontScale
             typeface = android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL)
         }
         val titlePaintLocal = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = 26f * scale
+            color = titleColor
+            textSize = 26f * scale * fontScale
             typeface = android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD)
         }
 
@@ -323,7 +386,7 @@ class WatermarkProcessor(
             max(450f * scale, widestText + padding * 2 + if (map == null) 0f else mapWidth + padding)
         )
 
-        val lineHeight = 36f * scale
+        val lineHeight = 36f * scale * fontScale
         val textBlockHeight = lines.size * lineHeight
         val panelHeight = max(textBlockHeight + padding * 2, mapHeight + padding * 2)
 
@@ -387,23 +450,43 @@ class WatermarkProcessor(
         padding: Float
     ) {
         val canvas = Canvas(bitmap)
-        val lineHeight = 34f * scale
+        val fontScale = metadata.fontScale.toFloat()
+        val lineHeight = 34f * scale * fontScale
 
         val alignRight = (metadata.position == 1 || metadata.position == 3)
         
+        val titleColor: Int
+        val textColorVal: Int
+        when (metadata.textColor) {
+            "black" -> {
+                titleColor = Color.BLACK
+                textColorVal = Color.rgb(40, 45, 50)
+            }
+            "yellow" -> {
+                titleColor = Color.rgb(255, 198, 41)
+                textColorVal = Color.rgb(255, 218, 100)
+            }
+            else -> { // "white"
+                titleColor = Color.WHITE
+                textColorVal = Color.rgb(240, 240, 240)
+            }
+        }
+        
         val textPaintLocal = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.rgb(240, 240, 240)
-            textSize = 24f * scale
+            color = textColorVal
+            textSize = 24f * scale * fontScale
             typeface = android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL)
             textAlign = if (alignRight) Paint.Align.RIGHT else Paint.Align.LEFT
-            setShadowLayer(4f * scale, 2f * scale, 2f * scale, Color.argb(200, 0, 0, 0))
+            val shadowColor = if (metadata.textColor == "black") Color.argb(120, 255, 255, 255) else Color.argb(200, 0, 0, 0)
+            setShadowLayer(4f * scale, 2f * scale, 2f * scale, shadowColor)
         }
         val titlePaintLocal = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textSize = 28f * scale
+            color = titleColor
+            textSize = 28f * scale * fontScale
             typeface = android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD)
             textAlign = if (alignRight) Paint.Align.RIGHT else Paint.Align.LEFT
-            setShadowLayer(4f * scale, 2f * scale, 2f * scale, Color.argb(200, 0, 0, 0))
+            val shadowColor = if (metadata.textColor == "black") Color.argb(120, 255, 255, 255) else Color.argb(200, 0, 0, 0)
+            setShadowLayer(4f * scale, 2f * scale, 2f * scale, shadowColor)
         }
 
         val lines = ArrayList<String>()

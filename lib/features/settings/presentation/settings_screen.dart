@@ -226,6 +226,125 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 32),
           Text(
+            'Watermark Style',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Text Color',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'white',
+                label: Text('White'),
+              ),
+              ButtonSegment(
+                value: 'black',
+                label: Text('Black'),
+              ),
+              ButtonSegment(
+                value: 'yellow',
+                label: Text('Yellow'),
+              ),
+            ],
+            selected: {settings.watermarkTextColor},
+            onSelectionChanged: (value) {
+              controller.update(settings.copyWith(watermarkTextColor: value.first));
+            },
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Background Style',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'black',
+                label: Text('Black'),
+              ),
+              ButtonSegment(
+                value: 'white',
+                label: Text('White'),
+              ),
+              ButtonSegment(
+                value: 'transparent',
+                label: Text('Transparent'),
+              ),
+            ],
+            selected: {settings.watermarkBgColor},
+            onSelectionChanged: (value) {
+              controller.update(settings.copyWith(watermarkBgColor: value.first));
+            },
+          ),
+          if (settings.watermarkBgColor != 'transparent') ...[
+            const SizedBox(height: 16),
+            Text(
+              'Background Opacity',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: settings.watermarkBgOpacity,
+                    min: 0.0,
+                    max: 1.0,
+                    divisions: 10,
+                    label: '${(settings.watermarkBgOpacity * 100).toInt()}%',
+                    onChanged: (val) {
+                      controller.update(settings.copyWith(watermarkBgOpacity: val));
+                    },
+                  ),
+                ),
+                Text(
+                  '${(settings.watermarkBgOpacity * 100).toInt()}%',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 20),
+          Text(
+            'Font Size Scale',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<double>(
+            segments: const [
+              ButtonSegment(
+                value: 0.8,
+                label: Text('Small'),
+              ),
+              ButtonSegment(
+                value: 1.0,
+                label: Text('Medium'),
+              ),
+              ButtonSegment(
+                value: 1.2,
+                label: Text('Large'),
+              ),
+              ButtonSegment(
+                value: 1.4,
+                label: Text('XL'),
+              ),
+            ],
+            selected: {settings.watermarkFontScale},
+            onSelectionChanged: (value) {
+              controller.update(settings.copyWith(watermarkFontScale: value.first));
+            },
+          ),
+          const Divider(height: 32),
+          Text(
             'Default Camera Settings',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Theme.of(context).colorScheme.primary,

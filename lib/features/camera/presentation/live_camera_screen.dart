@@ -211,6 +211,10 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'showMapPreview': settings.showMapPreview,
             'showAltitude': settings.showAltitude,
             'showTimestamp': settings.showTimestamp,
+            'textColor': settings.watermarkTextColor,
+            'bgColor': settings.watermarkBgColor,
+            'bgOpacity': settings.watermarkBgOpacity,
+            'fontScale': settings.watermarkFontScale,
             'mapBytes': settings.showMapPreview
                 ? locationController.cachedMapBytes
                 : null,
