@@ -25,6 +25,7 @@ data class CaptureMetadata(
     val longitude: Double,
     val altitude: Double,
     val accuracy: Double,
+    val heading: Double,
     val capturedAtMillis: Long,
     val address: String,
     val template: Int,
@@ -36,6 +37,7 @@ data class CaptureMetadata(
     val showMapPreview: Boolean,
     val showAltitude: Boolean,
     val showTimestamp: Boolean,
+    val showCompass: Boolean,
     val textColor: String,
     val bgColor: String,
     val bgOpacity: Double,
@@ -53,6 +55,7 @@ data class CaptureMetadata(
                 longitude = (arguments["longitude"] as Number).toDouble(),
                 altitude = (arguments["altitude"] as? Number)?.toDouble() ?: 0.0,
                 accuracy = (arguments["accuracy"] as Number).toDouble(),
+                heading = (arguments["heading"] as? Number)?.toDouble() ?: 0.0,
                 capturedAtMillis = (arguments["capturedAtMillis"] as Number).toLong(),
                 address = arguments["address"] as? String ?: "Location unavailable",
                 template = (arguments["template"] as Number).toInt(),
@@ -64,6 +67,7 @@ data class CaptureMetadata(
                 showMapPreview = arguments["showMapPreview"] as Boolean,
                 showAltitude = arguments["showAltitude"] as? Boolean ?: true,
                 showTimestamp = arguments["showTimestamp"] as? Boolean ?: true,
+                showCompass = arguments["showCompass"] as? Boolean ?: true,
                 textColor = arguments["textColor"] as? String ?: "white",
                 bgColor = arguments["bgColor"] as? String ?: "black",
                 bgOpacity = (arguments["bgOpacity"] as? Number)?.toDouble() ?: 0.75,
@@ -151,6 +155,13 @@ class WatermarkProcessor(
         }
     }
 
+    private fun getCardinalDirection(heading: Double): String {
+        val norm = (heading % 360 + 360) % 360
+        val directions = arrayOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
+        val index = (((norm + 22.5) / 45).toInt()) % 8
+        return directions[index]
+    }
+
     private fun drawWatermark(bitmap: Bitmap, metadata: CaptureMetadata) {
         val isLandscape = bitmap.width > bitmap.height
         val refDimension = if (isLandscape) bitmap.height else bitmap.width
@@ -227,6 +238,10 @@ class WatermarkProcessor(
         if (metadata.showAccuracy) {
             lines.add("Accuracy: ${metadata.accuracy.toInt()}m")
         }
+        if (metadata.showCompass && metadata.heading >= 0) {
+            val dir = getCardinalDirection(metadata.heading)
+            lines.add(String.format(Locale.US, "Bearing: %d° %s", Math.round(metadata.heading), dir))
+        }
 
         val map = if (
             metadata.showMapPreview && metadata.template != 0 && metadata.mapBytes != null
@@ -235,13 +250,13 @@ class WatermarkProcessor(
         } else {
             null
         }
-        val mapWidth = if (map == null) 0f else 220f * scale
-        val mapHeight = if (map == null) 0f else 120f * scale
+        val mapWidth = if (metadata.showMapPreview && metadata.template != 0) 220f * scale else 0f
+        val mapHeight = if (metadata.showMapPreview && metadata.template != 0) 120f * scale else 0f
         val widestText = lines.maxOf { titlePaint.measureText(it) }
         val maxPanelWidth = if (isLandscape) bitmap.width * 0.6f else bitmap.width - margin * 2
         val panelWidth = min(
             maxPanelWidth,
-            max(430f * scale, widestText + padding * 2 + if (map == null) 0f else mapWidth + padding),
+            max(430f * scale, widestText + padding * 2 + if (metadata.showMapPreview && metadata.template != 0) mapWidth + padding else 0f),
         )
         val panelHeight = max(lines.size * lineHeight + padding * 2, mapHeight + padding * 2)
         val left = when (metadata.position) {
@@ -257,11 +272,16 @@ class WatermarkProcessor(
         canvas.drawRoundRect(panelRect, radius, radius, panelPaint)
 
         var textX = left + padding
-        if (map != null) {
-            mapSourceRect.set(0, 0, map.width, map.height)
-            mapDestinationRect.set(textX, top + padding, textX + mapWidth, top + padding + mapHeight)
-            canvas.drawBitmap(map, mapSourceRect, mapDestinationRect, null)
-            drawLocationPin(canvas, mapDestinationRect, scale)
+        if (metadata.showMapPreview && metadata.template != 0) {
+            val mapTop = top + (panelHeight - mapHeight) / 2
+            mapDestinationRect.set(textX, mapTop, textX + mapWidth, mapTop + mapHeight)
+            if (map != null) {
+                mapSourceRect.set(0, 0, map.width, map.height)
+                canvas.drawBitmap(map, mapSourceRect, mapDestinationRect, null)
+                drawLocationPin(canvas, mapDestinationRect, scale)
+            } else {
+                drawFallbackMapPlaceholder(canvas, mapDestinationRect, scale)
+            }
             textX += mapWidth + padding
         }
         val maxTextWidth = left + panelWidth - padding - textX
@@ -333,18 +353,23 @@ class WatermarkProcessor(
             lines.add(metadata.addressBody)
         }
 
-        val coordParts = ArrayList<String>()
         if (metadata.showCoordinates) {
-            coordParts.add(String.format(Locale.US, "Lat %.6f° Long %.6f°", metadata.latitude, metadata.longitude))
+            lines.add(String.format(Locale.US, "Lat %.6f° Long %.6f°", metadata.latitude, metadata.longitude))
         }
+
+        val extraTelemetry = ArrayList<String>()
         if (metadata.showAltitude) {
-            coordParts.add(String.format(Locale.US, "Alt %.1fm", metadata.altitude))
+            extraTelemetry.add(String.format(Locale.US, "Alt %.1fm", metadata.altitude))
         }
         if (metadata.showAccuracy) {
-            coordParts.add(String.format(Locale.US, "Accuracy: %.0fm", metadata.accuracy))
+            extraTelemetry.add(String.format(Locale.US, "Accuracy: %.0fm", metadata.accuracy))
         }
-        if (coordParts.isNotEmpty()) {
-            lines.add(coordParts.joinToString("   "))
+        if (metadata.showCompass && metadata.heading >= 0) {
+            val dir = getCardinalDirection(metadata.heading)
+            extraTelemetry.add(String.format(Locale.US, "Bearing %d° %s", Math.round(metadata.heading), dir))
+        }
+        if (extraTelemetry.isNotEmpty()) {
+            lines.add(extraTelemetry.joinToString("   "))
         }
 
         if (metadata.showTimestamp) {
@@ -370,7 +395,7 @@ class WatermarkProcessor(
             null
         }
 
-        val mapSize = if (map == null) 0f else 180f * scale
+        val mapSize = if (metadata.showMapPreview) 180f * scale else 0f
         val mapWidth = mapSize
         val mapHeight = mapSize
 
@@ -383,7 +408,7 @@ class WatermarkProcessor(
         val maxPanelWidth = if (isLandscape) bitmap.width * 0.6f else bitmap.width - margin * 2
         val panelWidth = min(
             maxPanelWidth,
-            max(450f * scale, widestText + padding * 2 + if (map == null) 0f else mapWidth + padding)
+            max(450f * scale, widestText + padding * 2 + if (metadata.showMapPreview) mapWidth + padding else 0f)
         )
 
         val lineHeight = 36f * scale * fontScale
@@ -403,28 +428,31 @@ class WatermarkProcessor(
         canvas.drawRoundRect(panelRect, radius, radius, panelPaint)
 
         var textX = left + padding
-        if (map != null) {
+        if (metadata.showMapPreview) {
             val mapRadius = 12f * scale
-            mapSourceRect.set(0, 0, map.width, map.height)
             val mapTop = top + (panelHeight - mapHeight) / 2
             mapDestinationRect.set(textX, mapTop, textX + mapWidth, mapTop + mapHeight)
 
-            canvas.save()
-            val mapClipPath = android.graphics.Path().apply {
-                addRoundRect(mapDestinationRect, mapRadius, mapRadius, android.graphics.Path.Direction.CW)
-            }
-            canvas.clipPath(mapClipPath)
-            canvas.drawBitmap(map, mapSourceRect, mapDestinationRect, null)
-            canvas.restore()
+            if (map != null) {
+                mapSourceRect.set(0, 0, map.width, map.height)
+                canvas.save()
+                val mapClipPath = android.graphics.Path().apply {
+                    addRoundRect(mapDestinationRect, mapRadius, mapRadius, android.graphics.Path.Direction.CW)
+                }
+                canvas.clipPath(mapClipPath)
+                canvas.drawBitmap(map, mapSourceRect, mapDestinationRect, null)
+                canvas.restore()
 
-            val mapBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.argb(40, 255, 255, 255)
-                style = Paint.Style.STROKE
-                strokeWidth = 1f * scale
+                val mapBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.argb(40, 255, 255, 255)
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1f * scale
+                }
+                canvas.drawRoundRect(mapDestinationRect, mapRadius, mapRadius, mapBorderPaint)
+                drawLocationPin(canvas, mapDestinationRect, scale)
+            } else {
+                drawFallbackMapPlaceholder(canvas, mapDestinationRect, scale)
             }
-            canvas.drawRoundRect(mapDestinationRect, mapRadius, mapRadius, mapBorderPaint)
-
-            drawLocationPin(canvas, mapDestinationRect, scale)
 
             textX += mapWidth + padding
         }
@@ -514,6 +542,10 @@ class WatermarkProcessor(
         if (metadata.showAccuracy) {
             lines.add("Accuracy: ${metadata.accuracy.toInt()}m")
         }
+        if (metadata.showCompass && metadata.heading >= 0) {
+            val dir = getCardinalDirection(metadata.heading)
+            lines.add(String.format(Locale.US, "Bearing: %d° %s", Math.round(metadata.heading), dir))
+        }
 
         val x = if (alignRight) bitmap.width - margin else margin
         val textBlockHeight = lines.size * lineHeight
@@ -528,6 +560,37 @@ class WatermarkProcessor(
             }
             canvas.drawText(value, x, baseline, paint)
         }
+    }
+
+    private fun drawFallbackMapPlaceholder(canvas: Canvas, rect: RectF, scale: Float) {
+        val mapRadius = 12f * scale
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(20, 32, 45)
+            style = Paint.Style.FILL
+        }
+        canvas.drawRoundRect(rect, mapRadius, mapRadius, bgPaint)
+
+        val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(40, 255, 255, 255)
+            style = Paint.Style.STROKE
+            strokeWidth = 1f * scale
+        }
+        val gridStep = rect.width() / 4f
+        for (i in 1..3) {
+            val x = rect.left + i * gridStep
+            canvas.drawLine(x, rect.top, x, rect.bottom, gridPaint)
+            val y = rect.top + i * gridStep
+            canvas.drawLine(rect.left, y, rect.right, y, gridPaint)
+        }
+
+        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(80, 0, 200, 180)
+            style = Paint.Style.STROKE
+            strokeWidth = 1.5f * scale
+        }
+        canvas.drawRoundRect(rect, mapRadius, mapRadius, borderPaint)
+
+        drawLocationPin(canvas, rect, scale)
     }
 
     private fun drawLocationPin(canvas: Canvas, rect: RectF, scale: Float) {

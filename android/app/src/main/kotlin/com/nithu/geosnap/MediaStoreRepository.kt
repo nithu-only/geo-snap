@@ -64,8 +64,18 @@ class MediaStoreRepository(private val resolver: ContentResolver) {
             MediaStore.Images.Media.DATE_ADDED,
         )
         val results = mutableListOf<Map<String, Any>>()
-        val selection = "${MediaStore.Images.Media.RELATIVE_PATH}=?"
-        val selectionArgs = arrayOf(getRelativePath(customFolder))
+        
+        val selection: String
+        val selectionArgs: Array<String>
+        if (customFolder.isNullOrBlank()) {
+            selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
+            selectionArgs = arrayOf("${Environment.DIRECTORY_PICTURES}/GeoSnap/%")
+        } else {
+            val path = Environment.DIRECTORY_PICTURES + "/GeoSnap/" + customFolder.trim().trim('/') + "/"
+            selection = "${MediaStore.Images.Media.RELATIVE_PATH}=? OR ${MediaStore.Images.Media.RELATIVE_PATH}=?"
+            selectionArgs = arrayOf(path, path.trimEnd('/'))
+        }
+
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         resolver.query(collection, projection, selection, selectionArgs, sortOrder)?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
@@ -73,23 +83,39 @@ class MediaStoreRepository(private val resolver: ContentResolver) {
             val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
-                val uri = ContentUris.withAppendedId(collection, id)
+                val baseUri = ContentUris.withAppendedId(collection, id)
                 
                 var latitude: Double? = null
                 var longitude: Double? = null
                 try {
-                    resolver.openFileDescriptor(uri, "r")?.use { fd ->
-                        val exifInterface = ExifInterface(fd.fileDescriptor)
+                    val originalUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        try { MediaStore.setRequireOriginal(baseUri) } catch (_: Exception) { baseUri }
+                    } else {
+                        baseUri
+                    }
+                    resolver.openInputStream(originalUri)?.use { stream ->
+                        val exifInterface = ExifInterface(stream)
                         val latLong = exifInterface.latLong
                         if (latLong != null) {
                             latitude = latLong[0]
                             longitude = latLong[1]
                         }
                     }
-                } catch (e: Exception) { }
+                } catch (_: Exception) {
+                    try {
+                        resolver.openInputStream(baseUri)?.use { stream ->
+                            val exifInterface = ExifInterface(stream)
+                            val latLong = exifInterface.latLong
+                            if (latLong != null) {
+                                latitude = latLong[0]
+                                longitude = latLong[1]
+                            }
+                        }
+                    } catch (_: Exception) { }
+                }
 
                 val itemMap = mutableMapOf<String, Any>(
-                    "uri" to uri.toString(),
+                    "uri" to baseUri.toString(),
                     "name" to (cursor.getString(nameColumn) ?: "image.jpg"),
                     "dateMillis" to cursor.getLong(dateColumn) * 1_000L
                 )

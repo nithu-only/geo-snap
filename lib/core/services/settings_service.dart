@@ -12,6 +12,7 @@ class SettingsService {
   static const _showMapPreview = 'showMapPreview';
   static const _showAltitude = 'showAltitude';
   static const _showTimestamp = 'showTimestamp';
+  static const _showCompass = 'showCompass';
   static const _watermarkTextColor = 'watermarkTextColor';
   static const _watermarkBgColor = 'watermarkBgColor';
   static const _watermarkBgOpacity = 'watermarkBgOpacity';
@@ -42,6 +43,7 @@ class SettingsService {
       showMapPreview: prefs.getBool(_showMapPreview) ?? defaults.showMapPreview,
       showAltitude: prefs.getBool(_showAltitude) ?? defaults.showAltitude,
       showTimestamp: prefs.getBool(_showTimestamp) ?? defaults.showTimestamp,
+      showCompass: prefs.getBool(_showCompass) ?? defaults.showCompass,
       watermarkTextColor: prefs.getString(_watermarkTextColor) ?? defaults.watermarkTextColor,
       watermarkBgColor: prefs.getString(_watermarkBgColor) ?? defaults.watermarkBgColor,
       watermarkBgOpacity: prefs.getDouble(_watermarkBgOpacity) ?? defaults.watermarkBgOpacity,
@@ -70,6 +72,7 @@ class SettingsService {
     await prefs.setBool(_showMapPreview, settings.showMapPreview);
     await prefs.setBool(_showAltitude, settings.showAltitude);
     await prefs.setBool(_showTimestamp, settings.showTimestamp);
+    await prefs.setBool(_showCompass, settings.showCompass);
     await prefs.setString(_watermarkTextColor, settings.watermarkTextColor);
     await prefs.setString(_watermarkBgColor, settings.watermarkBgColor);
     await prefs.setDouble(_watermarkBgOpacity, settings.watermarkBgOpacity);

@@ -76,5 +76,8 @@ class GalleryController extends ChangeNotifier {
     if (!photos.isGranted) {
       await Permission.storage.request();
     }
+    try {
+      await Permission.accessMediaLocation.request();
+    } catch (_) {}
   }
 }

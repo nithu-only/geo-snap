@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/app_settings.dart';
 import '../../../core/models/gallery_photo.dart';
 import '../../../core/models/location_snapshot.dart';
+import '../../../core/services/compass_service.dart';
 import '../../../core/state/gallery_controller.dart';
 import '../../../core/state/location_controller.dart';
 import '../../../core/state/settings_controller.dart';
@@ -58,6 +59,11 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
   double _focusRingScale = 1.0;
   Timer? _focusRingTimer;
 
+  // Compass state
+  final CompassService _compassService = CompassService();
+  StreamSubscription<double>? _compassSubscription;
+  double _currentHeading = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -66,10 +72,20 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
       duration: const Duration(milliseconds: 400),
     );
     _requestPermission();
+    _compassService.startListening();
+    _compassSubscription = _compassService.compassStream.listen((heading) {
+      if (mounted) {
+        setState(() {
+          _currentHeading = heading;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _compassSubscription?.cancel();
+    _compassService.dispose();
     _flipController.dispose();
     _toastTimer?.cancel();
     _countdownTimer?.cancel();
@@ -200,6 +216,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'longitude': location.longitude,
             'altitude': location.altitude,
             'accuracy': location.accuracy,
+            'heading': location.heading > 0 ? location.heading : _currentHeading,
             'capturedAtMillis': DateTime.now().millisecondsSinceEpoch,
             'address': location.fullAddress,
             'template': settings.template.index,
@@ -211,6 +228,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'showMapPreview': settings.showMapPreview,
             'showAltitude': settings.showAltitude,
             'showTimestamp': settings.showTimestamp,
+            'showCompass': settings.showCompass,
             'textColor': settings.watermarkTextColor,
             'bgColor': settings.watermarkBgColor,
             'bgOpacity': settings.watermarkBgOpacity,
@@ -894,6 +912,13 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'Lat: ${location.latitude.toStringAsFixed(6)}   Long: ${location.longitude.toStringAsFixed(6)}',
             style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
           ),
+          if (_currentHeading > 0 || location.heading > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Bearing: ${(location.heading > 0 ? location : location.copyWithHeading(_currentHeading)).headingFormatted}',
+              style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
           if (location.placeName != null || location.city != null) ...[
             const SizedBox(height: 4),
             Text(

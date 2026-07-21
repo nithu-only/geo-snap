@@ -17,6 +17,7 @@ class AppSettings {
     required this.showMapPreview,
     required this.showAltitude,
     required this.showTimestamp,
+    required this.showCompass,
     required this.watermarkTextColor,
     required this.watermarkBgColor,
     required this.watermarkBgOpacity,
@@ -41,6 +42,7 @@ class AppSettings {
     showMapPreview: true,
     showAltitude: true,
     showTimestamp: true,
+    showCompass: true,
     watermarkTextColor: 'white',
     watermarkBgColor: 'black',
     watermarkBgOpacity: 0.75,
@@ -64,6 +66,7 @@ class AppSettings {
   final bool showMapPreview;
   final bool showAltitude;
   final bool showTimestamp;
+  final bool showCompass;
   final String watermarkTextColor;
   final String watermarkBgColor;
   final double watermarkBgOpacity;
@@ -87,6 +90,7 @@ class AppSettings {
     bool? showMapPreview,
     bool? showAltitude,
     bool? showTimestamp,
+    bool? showCompass,
     String? watermarkTextColor,
     String? watermarkBgColor,
     double? watermarkBgOpacity,
@@ -110,6 +114,7 @@ class AppSettings {
       showMapPreview: showMapPreview ?? this.showMapPreview,
       showAltitude: showAltitude ?? this.showAltitude,
       showTimestamp: showTimestamp ?? this.showTimestamp,
+      showCompass: showCompass ?? this.showCompass,
       watermarkTextColor: watermarkTextColor ?? this.watermarkTextColor,
       watermarkBgColor: watermarkBgColor ?? this.watermarkBgColor,
       watermarkBgOpacity: watermarkBgOpacity ?? this.watermarkBgOpacity,

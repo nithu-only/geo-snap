@@ -5,6 +5,7 @@ class LocationSnapshot {
     required this.accuracy,
     required this.altitude,
     required this.capturedAt,
+    this.heading = 0.0,
     this.placeName,
     this.city,
     this.state,
@@ -18,12 +19,25 @@ class LocationSnapshot {
   final double accuracy;
   final double altitude;
   final DateTime capturedAt;
+  final double heading;
   final String? placeName;
   final String? city;
   final String? state;
   final String? country;
   final String? postalCode;
   final String? countryCode;
+
+  String get cardinalDirection {
+    final norm = (heading % 360 + 360) % 360;
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    final index = ((norm + 22.5) / 45).floor() % 8;
+    return directions[index];
+  }
+
+  String get headingFormatted {
+    if (heading < 0) return '';
+    return '${heading.round()}° $cardinalDirection';
+  }
 
   String get flagEmoji {
     final code = countryCode?.trim().toUpperCase();
@@ -94,6 +108,7 @@ class LocationSnapshot {
     String? country,
     String? postalCode,
     String? countryCode,
+    double? heading,
   }) {
     return LocationSnapshot(
       latitude: latitude,
@@ -101,12 +116,30 @@ class LocationSnapshot {
       accuracy: accuracy,
       altitude: altitude,
       capturedAt: capturedAt,
+      heading: heading ?? this.heading,
       placeName: placeName ?? this.placeName,
       city: city ?? this.city,
       state: state ?? this.state,
       country: country ?? this.country,
       postalCode: postalCode ?? this.postalCode,
       countryCode: countryCode ?? this.countryCode,
+    );
+  }
+
+  LocationSnapshot copyWithHeading(double newHeading) {
+    return LocationSnapshot(
+      latitude: latitude,
+      longitude: longitude,
+      accuracy: accuracy,
+      altitude: altitude,
+      capturedAt: capturedAt,
+      heading: newHeading,
+      placeName: placeName,
+      city: city,
+      state: state,
+      country: country,
+      postalCode: postalCode,
+      countryCode: countryCode,
     );
   }
 }

@@ -13,20 +13,17 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _noteController;
-  late TextEditingController _folderController;
 
   @override
   void initState() {
     super.initState();
     final settings = context.read<SettingsController>().settings;
     _noteController = TextEditingController(text: settings.customNote);
-    _folderController = TextEditingController(text: settings.saveFolder);
   }
 
   @override
   void dispose() {
     _noteController.dispose();
-    _folderController.dispose();
     super.dispose();
   }
 
@@ -197,71 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   controller.update(settings.copyWith(position: value));
                 },
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Custom Stamp Note / Project Name',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _noteController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter project name or custom text...',
-                  border: OutlineInputBorder(),
-                  helperText: 'Stamps this custom text at the top of the photo details.',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                onChanged: (value) {
-                  controller.update(settings.copyWith(customNote: value));
-                },
-              ),
               const SizedBox(height: 16),
-              if (settings.saveFolderUri.isNotEmpty) ...[
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                  tileColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  leading: Icon(Icons.folder_shared, color: Theme.of(context).colorScheme.primary),
-                  title: const Text('Active Device Folder', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                  subtitle: Text(settings.saveFolderLabel, style: const TextStyle(fontSize: 12)),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () {
-                      controller.update(
-                        settings.copyWith(
-                          saveFolderUri: '',
-                          saveFolderLabel: '',
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              Text(
-                'Default Save Folder Name',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _folderController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter folder name (e.g. Project-A)...',
-                  border: OutlineInputBorder(),
-                  helperText: 'Images will be saved under Pictures/GeoSnap/<folder_name>/',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                onChanged: (value) {
-                  final clean = value.trim();
-                  controller.update(settings.copyWith(saveFolder: clean));
-                  if (clean.isNotEmpty) {
-                    controller.addFolder(clean);
-                  }
-                },
-              ),
-              const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 initialValue: settings.timestampPattern,
                 decoration: const InputDecoration(
@@ -289,6 +222,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }
                 },
               ),
+              const SizedBox(height: 12),
+              Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.only(top: 8, bottom: 8),
+                  leading: Icon(
+                    Icons.edit_note_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text(
+                    'Custom Note / Project Title',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    settings.customNote.isNotEmpty
+                        ? settings.customNote
+                        : 'None (Tap to add custom stamp note)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: settings.customNote.isNotEmpty
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey,
+                    ),
+                  ),
+                  children: [
+                    TextField(
+                      controller: _noteController,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter project name or custom text...',
+                        border: OutlineInputBorder(),
+                        helperText: 'Stamps this custom title onto saved photos.',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      onChanged: (value) {
+                        controller.update(settings.copyWith(customNote: value));
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              if (settings.saveFolderUri.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  tileColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  leading: Icon(Icons.folder_shared, color: Theme.of(context).colorScheme.primary),
+                  title: const Text('Active Device Folder', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  subtitle: Text(settings.saveFolderLabel, style: const TextStyle(fontSize: 12)),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.clear, size: 20),
+                    onPressed: () {
+                      controller.update(
+                        settings.copyWith(
+                          saveFolderUri: '',
+                          saveFolderLabel: '',
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           ),
           _buildSection(
@@ -520,6 +520,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: const Text('Show Timestamp', style: TextStyle(fontSize: 14)),
                 onChanged: (value) =>
                     controller.update(settings.copyWith(showTimestamp: value)),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: settings.showCompass,
+                title: const Text('Show Compass / Bearing (e.g. 142° SE)', style: TextStyle(fontSize: 14)),
+                onChanged: (value) =>
+                    controller.update(settings.copyWith(showCompass: value)),
               ),
             ],
           ),
