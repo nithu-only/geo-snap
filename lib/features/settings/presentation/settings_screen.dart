@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/app_settings.dart';
@@ -140,6 +141,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _buildSection(
+            context,
+            title: 'Live Watermark Preview',
+            children: [
+              _WatermarkPreviewCard(settings: settings),
+            ],
+          ),
           _buildSection(
             context,
             title: 'Watermark Layout',
@@ -641,4 +649,327 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+}
+
+class _WatermarkPreviewCard extends StatelessWidget {
+  const _WatermarkPreviewCard({required this.settings});
+
+  final AppSettings settings;
+
+  Alignment _getAlignment(WatermarkPosition position) {
+    switch (position) {
+      case WatermarkPosition.topLeft:
+        return Alignment.topLeft;
+      case WatermarkPosition.topRight:
+        return Alignment.topRight;
+      case WatermarkPosition.bottomLeft:
+        return Alignment.bottomLeft;
+      case WatermarkPosition.bottomRight:
+        return Alignment.bottomRight;
+    }
+  }
+
+  Color _getTextColor(String color) {
+    switch (color) {
+      case 'black':
+        return const Color(0xFF282D32);
+      case 'yellow':
+        return const Color(0xFFFFC629);
+      default:
+        return Colors.white;
+    }
+  }
+
+  Color _getBgColor(String color) {
+    switch (color) {
+      case 'white':
+        return Colors.white;
+      case 'transparent':
+        return Colors.transparent;
+      default:
+        return Colors.black;
+    }
+  }
+
+  List<String> _buildPreviewLines(AppSettings settings) {
+    final lines = <String>[];
+    
+    if (settings.template == WatermarkTemplate.gpsMapCamera) {
+      if (settings.showAddress) {
+        lines.add(settings.customNote.isNotEmpty ? settings.customNote : '123 Main St, Manhattan');
+        lines.add('New York, NY, USA 🇺🇸');
+      } else {
+        lines.add('GeoSnap');
+      }
+      
+      if (settings.showCoordinates) {
+        lines.add('Lat 40.712776° Long -74.005974°');
+      }
+      
+      final extra = <String>[];
+      if (settings.showAltitude) extra.add('Alt 12.5m');
+      if (settings.showAccuracy) extra.add('Accuracy 4m');
+      if (settings.showCompass) extra.add('Bearing 142° SE');
+      if (extra.isNotEmpty) {
+        lines.add(extra.join('   '));
+      }
+      
+      if (settings.showTimestamp) {
+        final now = DateTime.now();
+        final dateStr = DateFormat('EEEE, dd/MM/yyyy hh:mm a').format(now);
+        final offset = now.timeZoneOffset;
+        final hours = offset.inHours.abs().toString().padLeft(2, '0');
+        final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+        final sign = offset.isNegative ? '-' : '+';
+        lines.add('$dateStr GMT $sign$hours:$minutes');
+      }
+    } else {
+      if (settings.showAddress) {
+        lines.add(settings.customNote.isNotEmpty ? settings.customNote : '123 Main St, New York, NY, USA 🇺🇸');
+      } else {
+        lines.add('GeoSnap');
+      }
+      
+      if (settings.showCoordinates) {
+        lines.add('Lat 40.712776 Long -74.005974');
+      }
+      
+      if (settings.showAltitude) {
+        lines.add('Alt: 12.5m');
+      }
+      
+      if (settings.showTimestamp) {
+        try {
+          final formatted = DateFormat(settings.timestampPattern).format(DateTime.now());
+          lines.add(formatted);
+        } catch (_) {
+          lines.add('07-Aug-2026 09:32 AM');
+        }
+      }
+      
+      if (settings.showAccuracy) {
+        lines.add('Accuracy: 4m');
+      }
+      
+      if (settings.showCompass) {
+        lines.add('Bearing: 142° SE');
+      }
+    }
+    
+    return lines;
+  }
+
+  Widget _buildMapPlaceholder(AppSettings settings) {
+    final isGpsTemplate = settings.template == WatermarkTemplate.gpsMapCamera;
+    final width = isGpsTemplate ? 36.0 : 44.0;
+    final height = isGpsTemplate ? 36.0 : 24.0;
+    final radius = isGpsTemplate ? 4.0 : 3.0;
+    
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF14202D),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 0.5,
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _MapGridPainter(),
+            ),
+          ),
+          const Icon(
+            Icons.location_on,
+            color: Color(0xFFDC322F),
+            size: 10,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWatermarkBody(AppSettings settings) {
+    final lines = _buildPreviewLines(settings);
+    final textColor = _getTextColor(settings.watermarkTextColor);
+    final fontScale = settings.watermarkFontScale;
+    
+    if (settings.template == WatermarkTemplate.minimal) {
+      final alignRight = (settings.position == WatermarkPosition.topRight || settings.position == WatermarkPosition.bottomRight);
+      
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: lines.asMap().entries.map((entry) {
+          final index = entry.key;
+          final text = entry.value;
+          final isTitle = index == 0;
+          
+          return Text(
+            text,
+            textAlign: alignRight ? TextAlign.right : TextAlign.left,
+            style: TextStyle(
+              color: textColor,
+              fontSize: (isTitle ? 9.5 : 8.0) * fontScale,
+              fontWeight: isTitle ? FontWeight.bold : FontWeight.normal,
+              shadows: [
+                Shadow(
+                  color: settings.watermarkTextColor == 'black' 
+                      ? Colors.white.withValues(alpha: 0.5) 
+                      : Colors.black.withValues(alpha: 0.8),
+                  offset: const Offset(1.0, 1.0),
+                  blurRadius: 2.0,
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      );
+    }
+    
+    final panelBgColor = _getBgColor(settings.watermarkBgColor);
+    final panelBgOpacity = settings.watermarkBgOpacity;
+    
+    final showMap = settings.showMapPreview && 
+        (settings.template == WatermarkTemplate.largePanel || settings.template == WatermarkTemplate.gpsMapCamera);
+        
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (showMap) ...[
+          _buildMapPlaceholder(settings),
+          const SizedBox(width: 6),
+        ],
+        Flexible(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: lines.asMap().entries.map((entry) {
+              final index = entry.key;
+              final text = entry.value;
+              final isTitle = index == 0 && settings.template != WatermarkTemplate.compact;
+              
+              return Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isTitle 
+                      ? (settings.watermarkTextColor == 'white' ? Colors.white : textColor)
+                      : (settings.watermarkTextColor == 'white' ? Colors.white70 : textColor.withValues(alpha: 0.8)),
+                  fontSize: (isTitle ? 9.0 : 7.5) * fontScale,
+                  fontWeight: isTitle ? FontWeight.bold : FontWeight.normal,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      constraints: const BoxConstraints(maxWidth: 240),
+      decoration: BoxDecoration(
+        color: panelBgColor.withValues(alpha: panelBgOpacity),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: content,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1E3C72),
+            Color(0xFF2A5298),
+            Color(0xFF487EB0),
+          ],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _PreviewGridPainter(),
+                ),
+              ),
+            ),
+            Align(
+              alignment: _getAlignment(settings.position),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: _buildWatermarkBody(settings),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.08)
+      ..strokeWidth = 1.0;
+      
+    canvas.drawLine(Offset(size.width / 3, 0), Offset(size.width / 3, size.height), paint);
+    canvas.drawLine(Offset(size.width * 2 / 3, 0), Offset(size.width * 2 / 3, size.height), paint);
+    
+    canvas.drawLine(Offset(0, size.height / 3), Offset(size.width, size.height / 3), paint);
+    canvas.drawLine(Offset(0, size.height * 2 / 3), Offset(size.width, size.height * 2 / 3), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _MapGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.12)
+      ..strokeWidth = 0.5;
+    
+    final step = size.width / 4;
+    for (int i = 1; i <= 3; i++) {
+      final x = i * step;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    final stepY = size.height / 4;
+    for (int i = 1; i <= 3; i++) {
+      final y = i * stepY;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
