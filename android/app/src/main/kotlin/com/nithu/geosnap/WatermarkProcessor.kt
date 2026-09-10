@@ -132,7 +132,7 @@ class WatermarkProcessor(
         }
         try {
             mediaStore.openOutput(destination).use { output ->
-                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 94, output)) {
+                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)) {
                     throw IllegalStateException("Unable to encode final JPEG.")
                 }
             }
@@ -660,10 +660,10 @@ class WatermarkProcessor(
         }
         val matrix = Matrix().apply { postRotate(degrees) }
         val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        bitmap.recycle()
-        val mutable = rotated.copy(Bitmap.Config.ARGB_8888, true)
-        rotated.recycle()
-        return mutable
+        if (rotated !== bitmap) {
+            bitmap.recycle()
+        }
+        return rotated
     }
 
     private fun restoreExif(

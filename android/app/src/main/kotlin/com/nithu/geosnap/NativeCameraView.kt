@@ -53,13 +53,14 @@ class NativeCameraView(
 ) : PlatformView, MethodChannel.MethodCallHandler {
     private val container = FrameLayout(activity)
     private val previewView = PreviewView(activity).apply {
-        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        implementationMode = PreviewView.ImplementationMode.PERFORMANCE
         scaleType = PreviewView.ScaleType.FILL_CENTER
         layoutParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT,
         )
     }
+
     private val channel = MethodChannel(messenger, "geo_snap/camera_$viewId")
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val processingScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -173,10 +174,15 @@ class NativeCameraView(
                     preview = Preview.Builder().build().also {
                         it.surfaceProvider = previewView.surfaceProvider
                     }
+                    val captureMode = if (currentFlashMode == ImageCapture.FLASH_MODE_OFF && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        ImageCapture.CAPTURE_MODE_ZERO_SHUTTER_LAG
+                    } else {
+                        ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+                    }
                     imageCapture = ImageCapture.Builder()
-                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                        .setCaptureMode(captureMode)
                         .setOutputFormat(ImageCapture.OUTPUT_FORMAT_JPEG)
-                        .setJpegQuality(94)
+                        .setJpegQuality(92)
                         .setFlashMode(currentFlashMode)
                         .build()
                     cameraProvider.unbindAll()
@@ -220,6 +226,8 @@ class NativeCameraView(
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     Log.i(PERF_TAG, "shutter_jpeg_ms=${SystemClock.elapsedRealtime() - startedAt}")
+                    captureInProgress.set(false)
+                    notifyFlutter("onShutterTaken", null)
                     processingScope.launch {
                         try {
                             val uri = processor.process(source, metadata)
@@ -228,8 +236,6 @@ class NativeCameraView(
                         } catch (error: Exception) {
                             source.delete()
                             notifyFlutter("onPhotoError", error.message ?: "Unable to save photo.")
-                        } finally {
-                            captureInProgress.set(false)
                         }
                     }
                 }

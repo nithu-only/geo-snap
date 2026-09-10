@@ -117,6 +117,18 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
     setState(() => _cameraChannel = channel);
   }
 
+  // Shutter Flash feedback state
+  bool _showShutterFlash = false;
+
+  void _triggerShutterFlash() {
+    setState(() => _showShutterFlash = true);
+    Timer(const Duration(milliseconds: 80), () {
+      if (mounted) {
+        setState(() => _showShutterFlash = false);
+      }
+    });
+  }
+
   Future<void> _onNativeCameraEvent(MethodCall call) async {
     if (!mounted) {
       return;
@@ -127,6 +139,10 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
           _cameraReady = true;
           _error = null;
         });
+      case 'onShutterTaken':
+        if (mounted) {
+          setState(() => _captureQueued = false);
+        }
       case 'onPhotoSaved':
         setState(() => _captureQueued = false);
         final currentSettings = context.read<SettingsController>().settings;
@@ -206,6 +222,9 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
       _showMessage('Poor GPS Accuracy', subtitle: 'Wait for accuracy below 20m', isSuccess: false);
       return;
     }
+
+    HapticFeedback.lightImpact();
+    _triggerShutterFlash();
 
     final settings = context.read<SettingsController>().settings;
     setState(() => _captureQueued = true);
@@ -411,6 +430,16 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             creationParamsCodec: const StandardMessageCodec(),
           ),
         ),
+
+        // Shutter Flash Feedback Animation
+        if (_showShutterFlash)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                color: Colors.white.withValues(alpha: 0.75),
+              ),
+            ),
+          ),
 
         // Viewport Gesture Handler (Zoom & Focus)
         Positioned.fill(
