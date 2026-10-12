@@ -53,7 +53,7 @@ class NativeCameraView(
 ) : PlatformView, MethodChannel.MethodCallHandler {
     private val container = FrameLayout(activity)
     private val previewView = PreviewView(activity).apply {
-        implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         scaleType = PreviewView.ScaleType.FILL_CENTER
         layoutParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,

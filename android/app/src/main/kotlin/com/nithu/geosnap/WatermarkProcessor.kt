@@ -660,10 +660,10 @@ class WatermarkProcessor(
         }
         val matrix = Matrix().apply { postRotate(degrees) }
         val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        if (rotated !== bitmap) {
-            bitmap.recycle()
-        }
-        return rotated
+        bitmap.recycle()
+        val mutable = rotated.copy(Bitmap.Config.ARGB_8888, true)
+        rotated.recycle()
+        return mutable
     }
 
     private fun restoreExif(

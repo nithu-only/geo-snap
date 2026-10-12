@@ -12,6 +12,12 @@ You can download the latest production-ready Android APK directly from the [GitH
 
 ## Features
 
+- **Live Watermark Preview Card**: Interactive, real-time live preview card directly in Settings showing changes dynamically as styling and layout options are adjusted.
+- **Compass & Bearing Stamping**: Real-time compass heading integration stamping live bearing and cardinal direction (e.g., `142° SE`).
+- **Custom Watermark Styling & Layouts**: Customizable text colors (White, Black, Yellow), background styling (Solid Black, Solid White, Transparent) with opacity slider (0–100%), font scale selector (S, M, L, XL), and multiple layout templates (Classic, GPS Map Camera, Minimalist).
+- **Interactive Gallery Map**: Toggleable street map view within the Gallery utilizing OpenStreetMap, featuring circular preview marker thumbnails and slide-up photo details panel.
+- **Tactile Shutter Feedback & Low Latency**: Instant shutter feedback with light haptic response, white flash screen animation, and zero shutter lag capture mode.
+- **Storage Access Framework (SAF) Folder Selection**: Support for custom device folder picking via Android SAF alongside default `Pictures/GeoSnap/`.
 - **Animated Splash Screen**: Verification of permissions with early native GPS warm-up and high-end transition animations.
 - **Glassmorphic Live Viewfinder Overlay**: Camera controls overlay on live preview with rule-of-thirds grid alignment.
 - **Camera Configurations**: Dynamic flash mode toggle (On, Off, Auto) and lens selection (Front vs Back camera) saved across sessions.
@@ -49,6 +55,8 @@ flutter run
 
 - Native Android CameraX `ImageCapture` for low-latency live capture
 - `geolocator` and `geocoding` for GPS and address lookup
+- `flutter_compass` for device orientation and bearing computation
+- `flutter_map` and `latlong2` for the interactive gallery map view
 - Native Kotlin Canvas rendering for permanent JPEG watermarks
 - `provider` for app state
 - `permission_handler` for runtime permissions
