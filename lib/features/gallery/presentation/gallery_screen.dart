@@ -167,6 +167,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                               builder: (_) => PhotoDetailScreen(
                                 photos: photos,
                                 initialIndex: index >= 0 ? index : 0,
+                                fromGallery: true,
                               ),
                             ),
                           );
@@ -319,6 +320,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         builder: (_) => PhotoDetailScreen(
                           photos: photos,
                           initialIndex: index,
+                          fromGallery: true,
                         ),
                       ),
                     ),
@@ -441,11 +443,13 @@ class PhotoDetailScreen extends StatefulWidget {
   const PhotoDetailScreen({
     required this.photos,
     required this.initialIndex,
+    this.fromGallery = false,
     super.key,
   });
 
   final List<GalleryPhoto> photos;
   final int initialIndex;
+  final bool fromGallery;
 
   @override
   State<PhotoDetailScreen> createState() => _PhotoDetailScreenState();
@@ -454,12 +458,14 @@ class PhotoDetailScreen extends StatefulWidget {
 class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
   late PageController _pageController;
   late int _currentIndex;
+  late List<GalleryPhoto> _photos;
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
+    _photos = List<GalleryPhoto>.from(widget.photos);
+    _currentIndex = widget.initialIndex.clamp(0, _photos.isEmpty ? 0 : _photos.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
   }
 
   @override
@@ -471,14 +477,14 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = context.read<GalleryController>();
-    if (widget.photos.isEmpty) {
+    if (_photos.isEmpty) {
       return const Scaffold(
         body: Center(child: Text('No photos')),
       );
     }
 
-    final safeIndex = _currentIndex.clamp(0, widget.photos.length - 1);
-    final photo = widget.photos[safeIndex];
+    final safeIndex = _currentIndex.clamp(0, _photos.length - 1);
+    final photo = _photos[safeIndex];
 
     return Scaffold(
       appBar: AppBar(
@@ -492,12 +498,22 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              '${safeIndex + 1} of ${widget.photos.length}',
+              '${safeIndex + 1} of ${_photos.length}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),
         actions: [
+          if (!widget.fromGallery)
+            IconButton(
+              tooltip: 'Gallery',
+              icon: const Icon(Icons.grid_view_rounded),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const GalleryScreen()),
+                );
+              },
+            ),
           IconButton(
             tooltip: 'Share',
             icon: const Icon(Icons.share_outlined),
@@ -529,7 +545,19 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
               if (confirmed == true && context.mounted) {
                 await controller.delete(photo);
                 if (context.mounted) {
-                  Navigator.of(context).pop();
+                  setState(() {
+                    _photos.removeAt(safeIndex);
+                    if (_photos.isEmpty) {
+                      Navigator.of(context).pop();
+                    } else {
+                      if (_currentIndex >= _photos.length) {
+                        _currentIndex = _photos.length - 1;
+                      }
+                      if (_pageController.hasClients) {
+                        _pageController.jumpToPage(_currentIndex);
+                      }
+                    }
+                  });
                 }
               }
             },
@@ -538,7 +566,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
       ),
       body: PageView.builder(
         controller: _pageController,
-        itemCount: widget.photos.length,
+        itemCount: _photos.length,
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
@@ -546,7 +574,8 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
         },
         itemBuilder: (context, index) {
           return _PhotoPageItem(
-            photo: widget.photos[index],
+            key: ValueKey(_photos[index].uri),
+            photo: _photos[index],
             controller: controller,
           );
         },
@@ -581,7 +610,11 @@ class _EmptyGallery extends StatelessWidget {
 }
 
 class _PhotoPageItem extends StatefulWidget {
-  const _PhotoPageItem({required this.photo, required this.controller});
+  const _PhotoPageItem({
+    super.key,
+    required this.photo,
+    required this.controller,
+  });
 
   final GalleryPhoto photo;
   final GalleryController controller;
@@ -597,6 +630,14 @@ class _PhotoPageItemState extends State<_PhotoPageItem> {
   void initState() {
     super.initState();
     _bytesFuture = widget.controller.bytesFor(widget.photo);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PhotoPageItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.photo.uri != widget.photo.uri) {
+      _bytesFuture = widget.controller.bytesFor(widget.photo);
+    }
   }
 
   @override

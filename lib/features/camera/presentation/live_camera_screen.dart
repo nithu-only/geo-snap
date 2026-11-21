@@ -103,11 +103,15 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
         _permissionReady = permission.isGranted;
         _error = permission.isGranted ? null : 'Camera permission was denied.';
       });
+      if (permission.isGranted) {
+        _refreshLastPhoto();
+      }
     } else {
       setState(() {
         _permissionReady = true;
         _error = null;
       });
+      _refreshLastPhoto();
     }
   }
 
@@ -207,7 +211,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
     _showMessage('Timer Cancelled', subtitle: 'Photo capture aborted');
   }
 
-  void _capture() {
+  Future<void> _capture() async {
     final channel = _cameraChannel;
     final locationController = context.read<LocationController>();
     final location = locationController.captureSnapshot();
@@ -228,6 +232,16 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
 
     final settings = context.read<SettingsController>().settings;
     setState(() => _captureQueued = true);
+
+    Uint8List? mapBytes = settings.showMapPreview ? locationController.cachedMapBytes : null;
+    if (settings.showMapPreview && mapBytes == null) {
+      try {
+        mapBytes = await locationController
+            .fetchMapNow(latitude: location.latitude, longitude: location.longitude)
+            .timeout(const Duration(seconds: 2));
+      } catch (_) {}
+    }
+
     unawaited(
       channel
           .invokeMethod<bool>('capture', {
@@ -252,9 +266,7 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'bgColor': settings.watermarkBgColor,
             'bgOpacity': settings.watermarkBgOpacity,
             'fontScale': settings.watermarkFontScale,
-            'mapBytes': settings.showMapPreview
-                ? locationController.cachedMapBytes
-                : null,
+            'mapBytes': mapBytes,
             'addressHeader': settings.customNote.isNotEmpty
                 ? settings.customNote
                 : location.headerAddress,
@@ -370,19 +382,32 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
   }
 
   Future<void> _refreshLastPhoto() async {
-    final galleryController = context.read<GalleryController>();
-    await galleryController.load();
-    final photos = galleryController.photos;
-    if (photos.isNotEmpty && mounted) {
-      final newest = photos.first;
-      final bytes = await galleryController.bytesFor(newest);
-      if (mounted) {
+    if (!mounted) return;
+    try {
+      final settings = context.read<SettingsController>().settings;
+      final galleryController = context.read<GalleryController>();
+      if (settings.saveFolderUri.isNotEmpty) {
+        await galleryController.load(saveFolderUri: settings.saveFolderUri);
+      } else {
+        await galleryController.load(saveFolder: settings.saveFolder);
+      }
+      final photos = galleryController.photos;
+      if (photos.isNotEmpty && mounted) {
+        final newest = photos.first;
+        final bytes = await galleryController.bytesFor(newest);
+        if (mounted) {
+          setState(() {
+            _lastPhoto = newest;
+            _lastPhotoBytes = bytes;
+          });
+        }
+      } else if (mounted) {
         setState(() {
-          _lastPhoto = newest;
-          _lastPhotoBytes = bytes;
+          _lastPhoto = null;
+          _lastPhotoBytes = null;
         });
       }
-    }
+    } catch (_) {}
   }
 
   @override
@@ -771,20 +796,43 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
                     _LastShotButton(
                       lastPhoto: _lastPhoto,
                       lastPhotoBytes: _lastPhotoBytes,
-                      onTap: () {
-                        if (_lastPhoto != null) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => PhotoDetailScreen(
-                                  photos: [_lastPhoto!],
-                                  initialIndex: 0,
-                                ),
+                      onTap: () async {
+                        final galleryController = context.read<GalleryController>();
+                        if (galleryController.photos.isEmpty) {
+                          final settings = context.read<SettingsController>().settings;
+                          if (settings.saveFolderUri.isNotEmpty) {
+                            await galleryController.load(saveFolderUri: settings.saveFolderUri);
+                          } else {
+                            await galleryController.load(saveFolder: settings.saveFolder);
+                          }
+                        }
+                        if (!mounted) return;
+                        final photos = galleryController.photos;
+                        if (photos.isNotEmpty) {
+                          final initialIndex = (_lastPhoto != null && photos.contains(_lastPhoto))
+                              ? photos.indexOf(_lastPhoto!)
+                              : 0;
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PhotoDetailScreen(
+                                photos: photos,
+                                initialIndex: initialIndex >= 0 ? initialIndex : 0,
+                                fromGallery: false,
                               ),
-                            );
+                            ),
+                          ).then((_) {
+                            if (mounted) {
+                              _refreshLastPhoto();
+                            }
+                          });
                         } else {
                           Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const GalleryScreen()),
-                          );
+                          ).then((_) {
+                            if (mounted) {
+                              _refreshLastPhoto();
+                            }
+                          });
                         }
                       },
                     ),

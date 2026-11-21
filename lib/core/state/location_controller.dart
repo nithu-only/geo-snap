@@ -108,7 +108,7 @@ class LocationController extends ChangeNotifier {
             current.latitude,
             current.longitude,
           );
-    if (distance < 100 && elapsed < const Duration(minutes: 5)) {
+    if (distance < 100 && elapsed < const Duration(minutes: 5) && _cachedMapBytes != null) {
       return;
     }
 
@@ -137,6 +137,16 @@ class LocationController extends ChangeNotifier {
     } finally {
       _refreshingEnrichment = false;
     }
+  }
+
+  Future<Uint8List?> fetchMapNow({required double latitude, required double longitude}) async {
+    if (_cachedMapBytes != null) return _cachedMapBytes;
+    final bytes = await _mapThumbnailService.fetch(latitude: latitude, longitude: longitude);
+    if (bytes != null) {
+      _cachedMapBytes = bytes;
+      notifyListeners();
+    }
+    return bytes;
   }
 
   @override
