@@ -160,6 +160,28 @@ class NativeCameraView(
                     result.success(false)
                 }
             }
+            "setExposureCompensation" -> {
+                val index = call.argument<Int>("index") ?: 0
+                camera?.cameraControl?.setExposureCompensationIndex(index)
+                result.success(true)
+            }
+            "getExposureRange" -> {
+                val state = camera?.cameraInfo?.exposureState
+                if (state != null && state.isExposureCompensationSupported) {
+                    val range = state.exposureCompensationRange
+                    result.success(
+                        mapOf(
+                            "supported" to true,
+                            "min" to range.lower,
+                            "max" to range.upper,
+                            "step" to state.exposureCompensationStep.toDouble(),
+                            "current" to state.exposureCompensationIndex,
+                        )
+                    )
+                } else {
+                    result.success(mapOf("supported" to false))
+                }
+            }
             else -> result.notImplemented()
         }
     }

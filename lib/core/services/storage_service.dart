@@ -67,20 +67,38 @@ class StorageService {
     await _channel.invokeMethod<void>('deleteImage', {'uri': uri});
   }
 
-  Future<void> share(GalleryPhoto photo) async {
-    final bytes = await readBytes(photo.uri);
-    final tempFile = XFile.fromData(
-      bytes,
-      name: photo.name,
-      mimeType: 'image/jpeg',
-      lastModified: photo.createdAt,
-    );
+  Future<void> deleteMultiple(List<GalleryPhoto> photos) async {
+    for (final photo in photos) {
+      try {
+        await _channel.invokeMethod<void>('deleteImage', {'uri': photo.uri});
+      } catch (_) {}
+    }
+  }
+
+  Future<void> share(GalleryPhoto photo) => shareMultiple([photo]);
+
+  Future<void> shareMultiple(List<GalleryPhoto> photos) async {
+    if (photos.isEmpty) return;
+    final files = <XFile>[];
+    final names = <String>[];
+    for (final photo in photos) {
+      final bytes = await readBytes(photo.uri);
+      files.add(
+        XFile.fromData(
+          bytes,
+          name: photo.name,
+          mimeType: 'image/jpeg',
+          lastModified: photo.createdAt,
+        ),
+      );
+      names.add(photo.name);
+    }
     await SharePlus.instance.share(
       ShareParams(
-        files: [tempFile],
-        fileNameOverrides: [photo.name],
-        subject: 'GeoSnap photo',
-        text: photo.name,
+        files: files,
+        fileNameOverrides: names,
+        subject: 'GeoSnap photos (${photos.length})',
+        text: 'Shared ${photos.length} photos from GeoSnap',
         sharePositionOrigin: null,
       ),
     );

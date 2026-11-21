@@ -1,3 +1,5 @@
+import '../utils/coordinate_formatter.dart';
+
 enum WatermarkTemplate { compact, largePanel, gpsMapCamera, minimal }
 
 enum WatermarkPosition { topLeft, topRight, bottomLeft, bottomRight }
@@ -25,6 +27,8 @@ class AppSettings {
     required this.flashMode,
     required this.cameraLens,
     required this.showGrid,
+    required this.showLevel,
+    required this.coordinateFormat,
     required this.customNote,
     required this.timerSeconds,
     required this.saveFolder,
@@ -50,6 +54,8 @@ class AppSettings {
     flashMode: FlashMode.off,
     cameraLens: CameraLens.back,
     showGrid: false,
+    showLevel: false,
+    coordinateFormat: CoordinateFormat.decimal,
     customNote: '',
     timerSeconds: 0,
     saveFolder: '',
@@ -74,6 +80,8 @@ class AppSettings {
   final FlashMode flashMode;
   final CameraLens cameraLens;
   final bool showGrid;
+  final bool showLevel;
+  final CoordinateFormat coordinateFormat;
   final String customNote;
   final int timerSeconds;
   final String saveFolder;
@@ -98,6 +106,8 @@ class AppSettings {
     FlashMode? flashMode,
     CameraLens? cameraLens,
     bool? showGrid,
+    bool? showLevel,
+    CoordinateFormat? coordinateFormat,
     String? customNote,
     int? timerSeconds,
     String? saveFolder,
@@ -122,6 +132,8 @@ class AppSettings {
       flashMode: flashMode ?? this.flashMode,
       cameraLens: cameraLens ?? this.cameraLens,
       showGrid: showGrid ?? this.showGrid,
+      showLevel: showLevel ?? this.showLevel,
+      coordinateFormat: coordinateFormat ?? this.coordinateFormat,
       customNote: customNote ?? this.customNote,
       timerSeconds: timerSeconds ?? this.timerSeconds,
       saveFolder: saveFolder ?? this.saveFolder,

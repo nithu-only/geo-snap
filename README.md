@@ -12,6 +12,10 @@ You can download the latest production-ready Android APK directly from the [GitH
 
 ## Features
 
+- **Multiple Coordinate Formats (DD, DMS, UTM)**: Toggle coordinate formats in Settings between Decimal Degrees (`DD.DDDDDD°`), Degrees Minutes Seconds (`DD° MM' SS.SS" N/S`), and Universal Transverse Mercator (`Zone UTM Easting/Northing`) for engineering and survey standards.
+- **Batch Multi-Select & Survey Export (CSV & KML)**: Select multiple photos in the gallery for bulk sharing, bulk deletion, or generating survey reports (CSV spreadsheet and Google Earth KML placemarks).
+- **Virtual Horizon / Artificial Level Indicator**: Real-time device sensor tilt reticle on the camera viewfinder that locks emerald green with haptic feedback when held level.
+- **Viewfinder Exposure Compensation (EV)**: Direct brightness adjustment slider alongside tap-to-focus for high-contrast outdoor environments.
 - **Live Watermark Preview Card**: Interactive, real-time live preview card directly in Settings showing changes dynamically as styling and layout options are adjusted.
 - **Compass & Bearing Stamping**: Real-time compass heading integration stamping live bearing and cardinal direction (e.g., `142° SE`).
 - **Custom Watermark Styling & Layouts**: Customizable text colors (White, Black, Yellow), background styling (Solid Black, Solid White, Transparent) with opacity slider (0–100%), font scale selector (S, M, L, XL), and multiple layout templates (Classic, GPS Map Camera, Minimalist).

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/app_settings.dart';
 import '../../../core/state/settings_controller.dart';
+import '../../../core/utils/coordinate_formatter.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -228,6 +229,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (value != null) {
                     controller.update(settings.copyWith(timestampPattern: value));
                   }
+                },
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Coordinate Format',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              _buildPillSelector<CoordinateFormat>(
+                selectedValue: settings.coordinateFormat,
+                values: CoordinateFormat.values,
+                labelBuilder: (val) {
+                  switch (val) {
+                    case CoordinateFormat.decimal:
+                      return 'Decimal (DD)';
+                    case CoordinateFormat.dms:
+                      return 'DMS';
+                    case CoordinateFormat.utm:
+                      return 'UTM';
+                  }
+                },
+                onSelected: (value) {
+                  controller.update(settings.copyWith(coordinateFormat: value));
                 },
               ),
               const SizedBox(height: 12),
@@ -643,6 +667,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onChanged: (value) =>
                     controller.update(settings.copyWith(showGrid: value)),
               ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: settings.showLevel,
+                title: const Text('Show Virtual Horizon (Level)', style: TextStyle(fontSize: 14)),
+                subtitle: const Text('Displays an artificial leveling horizon on the camera', style: TextStyle(fontSize: 12)),
+                onChanged: (value) =>
+                    controller.update(settings.copyWith(showLevel: value)),
+              ),
             ],
           ),
         ],
@@ -703,7 +735,11 @@ class _WatermarkPreviewCard extends StatelessWidget {
       }
       
       if (settings.showCoordinates) {
-        lines.add('Lat 40.712776° Long -74.005974°');
+        lines.add(CoordinateFormatter.format(
+          latitude: 40.712776,
+          longitude: -74.005974,
+          format: settings.coordinateFormat,
+        ));
       }
       
       final extra = <String>[];
@@ -731,7 +767,11 @@ class _WatermarkPreviewCard extends StatelessWidget {
       }
       
       if (settings.showCoordinates) {
-        lines.add('Lat 40.712776 Long -74.005974');
+        lines.add(CoordinateFormatter.format(
+          latitude: 40.712776,
+          longitude: -74.005974,
+          format: settings.coordinateFormat,
+        ));
       }
       
       if (settings.showAltitude) {

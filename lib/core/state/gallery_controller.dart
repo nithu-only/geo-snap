@@ -69,7 +69,14 @@ class GalleryController extends ChangeNotifier {
     await load(saveFolder: _lastSaveFolder, saveFolderUri: _lastSaveFolderUri);
   }
 
+  Future<void> deleteMultiple(List<GalleryPhoto> photos) async {
+    await _storageService.deleteMultiple(photos);
+    await load(saveFolder: _lastSaveFolder, saveFolderUri: _lastSaveFolderUri);
+  }
+
   Future<void> share(GalleryPhoto photo) => _storageService.share(photo);
+
+  Future<void> shareMultiple(List<GalleryPhoto> photos) => _storageService.shareMultiple(photos);
 
   Future<void> _requestMediaPermission() async {
     final photos = await Permission.photos.request();

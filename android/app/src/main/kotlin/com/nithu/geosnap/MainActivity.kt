@@ -9,6 +9,7 @@ import androidx.exifinterface.media.ExifInterface
 
 class MainActivity : FlutterActivity() {
     private var locationTracker: FusedLocationTracker? = null
+    private var tiltTracker: DeviceTiltTracker? = null
     private var pendingResult: MethodChannel.Result? = null
 
     companion object {
@@ -29,6 +30,13 @@ class MainActivity : FlutterActivity() {
             EventChannel(
                 flutterEngine.dartExecutor.binaryMessenger,
                 "geo_snap/location_events",
+            ).setStreamHandler(tracker)
+        }
+
+        tiltTracker = DeviceTiltTracker(this).also { tracker ->
+            EventChannel(
+                flutterEngine.dartExecutor.binaryMessenger,
+                "geo_snap/device_tilt",
             ).setStreamHandler(tracker)
         }
 
@@ -228,6 +236,8 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         locationTracker?.dispose()
         locationTracker = null
+        tiltTracker?.dispose()
+        tiltTracker = null
         super.onDestroy()
     }
 }

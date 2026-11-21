@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/models/gallery_photo.dart';
 import '../../../core/state/gallery_controller.dart';
 import '../../../core/state/settings_controller.dart';
+import '../../../core/utils/export_helper.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -19,6 +20,89 @@ class GalleryScreen extends StatefulWidget {
 class _GalleryScreenState extends State<GalleryScreen> {
   String _selectedFolder = '';
   bool _showMapView = false;
+  bool _isSelectionMode = false;
+  final Set<GalleryPhoto> _selectedPhotos = {};
+
+  void _toggleSelection(GalleryPhoto photo) {
+    setState(() {
+      if (_selectedPhotos.contains(photo)) {
+        _selectedPhotos.remove(photo);
+        if (_selectedPhotos.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedPhotos.add(photo);
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  void _selectAll(List<GalleryPhoto> photos) {
+    setState(() {
+      if (_selectedPhotos.length == photos.length) {
+        _selectedPhotos.clear();
+        _isSelectionMode = false;
+      } else {
+        _selectedPhotos.addAll(photos);
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedPhotos.clear();
+    });
+  }
+
+  Future<void> _deleteSelected(BuildContext context) async {
+    if (_selectedPhotos.isEmpty) return;
+    final controller = context.read<GalleryController>();
+    final count = _selectedPhotos.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete $count photos?'),
+        content: const Text(
+          'This will permanently remove the selected photos from GeoSnap.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final toDelete = _selectedPhotos.toList();
+      _exitSelectionMode();
+      await controller.deleteMultiple(toDelete);
+    }
+  }
+
+  Future<void> _shareSelected(BuildContext context) async {
+    if (_selectedPhotos.isEmpty) return;
+    final controller = context.read<GalleryController>();
+    await controller.shareMultiple(_selectedPhotos.toList());
+  }
+
+  Future<void> _exportCsv() async {
+    if (_selectedPhotos.isEmpty) return;
+    await ExportHelper.exportToCsv(_selectedPhotos.toList());
+  }
+
+  Future<void> _exportKml() async {
+    if (_selectedPhotos.isEmpty) return;
+    await ExportHelper.exportToKml(_selectedPhotos.toList());
+  }
 
   @override
   void initState() {
@@ -313,18 +397,33 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   childAspectRatio: 0.78,
                 ),
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => _PhotoTile(
-                    photo: photos[index],
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PhotoDetailScreen(
-                          photos: photos,
-                          initialIndex: index,
-                          fromGallery: true,
-                        ),
-                      ),
-                    ),
-                  ),
+                  (context, index) {
+                    final photo = photos[index];
+                    final isSelected = _selectedPhotos.contains(photo);
+                    return _PhotoTile(
+                      photo: photo,
+                      isSelected: isSelected,
+                      isSelectionMode: _isSelectionMode,
+                      onTap: () {
+                        if (_isSelectionMode) {
+                          _toggleSelection(photo);
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PhotoDetailScreen(
+                                photos: photos,
+                                initialIndex: index,
+                                fromGallery: true,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      onLongPress: () {
+                        _toggleSelection(photo);
+                      },
+                    );
+                  },
                   childCount: photos.length,
                 ),
               ),
@@ -336,102 +435,212 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(displayTitle),
-        actions: [
-          IconButton(
-            icon: Icon(_showMapView ? Icons.grid_view : Icons.map_outlined),
-            tooltip: _showMapView ? 'Switch to Grid View' : 'Switch to Map View',
-            onPressed: () {
-              setState(() {
-                _showMapView = !_showMapView;
-              });
-            },
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.folder_open_outlined),
-            tooltip: 'Filter by folder',
-            initialValue: _selectedFolder,
-            onSelected: (folder) {
-              setState(() {
-                _selectedFolder = folder;
-              });
-              if (folder.startsWith('content://')) {
-                context.read<GalleryController>().load(saveFolderUri: folder);
-              } else {
-                context.read<GalleryController>().load(saveFolder: folder);
-              }
-            },
-            itemBuilder: (context) {
-              return [
-                if (settings.saveFolderUri.isNotEmpty)
-                  PopupMenuItem(
-                    value: settings.saveFolderUri,
-                    child: Text('Device: ${settings.saveFolderLabel}'),
+      appBar: _isSelectionMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Exit selection',
+                onPressed: _exitSelectionMode,
+              ),
+              title: Text('${_selectedPhotos.length} selected'),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    _selectedPhotos.length == photos.length
+                        ? Icons.deselect
+                        : Icons.select_all,
                   ),
-                const PopupMenuItem(
-                  value: '',
-                  child: Text('Default (Root)'),
+                  tooltip: _selectedPhotos.length == photos.length ? 'Deselect all' : 'Select all',
+                  onPressed: () => _selectAll(photos),
                 ),
-                ...folders.map(
-                  (f) => PopupMenuItem(
-                    value: f,
-                    child: Text(f),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.share_outlined),
+                  tooltip: 'Share selected',
+                  onPressed: () => _shareSelected(context),
                 ),
-              ];
-            },
-          ),
-        ],
-      ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  tooltip: 'Delete selected',
+                  onPressed: () => _deleteSelected(context),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: 'Export options',
+                  onSelected: (val) {
+                    if (val == 'csv') _exportCsv();
+                    if (val == 'kml') _exportKml();
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'csv',
+                      child: Row(
+                        children: [
+                          Icon(Icons.table_chart_outlined, size: 20),
+                          SizedBox(width: 12),
+                          Text('Export as CSV'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'kml',
+                      child: Row(
+                        children: [
+                          Icon(Icons.public_outlined, size: 20),
+                          SizedBox(width: 12),
+                          Text('Export as KML (Google Earth)'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : AppBar(
+              title: Text(displayTitle),
+              actions: [
+                IconButton(
+                  icon: Icon(_showMapView ? Icons.grid_view : Icons.map_outlined),
+                  tooltip: _showMapView ? 'Switch to Grid View' : 'Switch to Map View',
+                  onPressed: () {
+                    setState(() {
+                      _showMapView = !_showMapView;
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.checklist_rounded),
+                  tooltip: 'Select photos',
+                  onPressed: () {
+                    setState(() {
+                      _isSelectionMode = true;
+                    });
+                  },
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.folder_open_outlined),
+                  tooltip: 'Filter by folder',
+                  initialValue: _selectedFolder,
+                  onSelected: (folder) {
+                    setState(() {
+                      _selectedFolder = folder;
+                    });
+                    if (folder.startsWith('content://')) {
+                      context.read<GalleryController>().load(saveFolderUri: folder);
+                    } else {
+                      context.read<GalleryController>().load(saveFolder: folder);
+                    }
+                  },
+                  itemBuilder: (context) {
+                    return [
+                      if (settings.saveFolderUri.isNotEmpty)
+                        PopupMenuItem(
+                          value: settings.saveFolderUri,
+                          child: Text('Device: ${settings.saveFolderLabel}'),
+                        ),
+                      const PopupMenuItem(
+                        value: '',
+                        child: Text('Default (Root)'),
+                      ),
+                      ...folders.map(
+                        (f) => PopupMenuItem(
+                          value: f,
+                          child: Text(f),
+                        ),
+                      ),
+                    ];
+                  },
+                ),
+              ],
+            ),
       body: body,
     );
   }
 }
 
 class _PhotoTile extends StatelessWidget {
-  const _PhotoTile({required this.photo, required this.onTap});
+  const _PhotoTile({
+    required this.photo,
+    required this.onTap,
+    this.onLongPress,
+    this.isSelected = false,
+    this.isSelectionMode = false,
+  });
 
   final GalleryPhoto photo;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool isSelected;
+  final bool isSelectionMode;
 
   @override
   Widget build(BuildContext context) {
     final controller = context.read<GalleryController>();
     return Card(
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isSelected
+            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.5)
+            : BorderSide.none,
+      ),
       child: InkWell(
         onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        onLongPress: onLongPress,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              child: FutureBuilder(
-                future: controller.thumbnailFor(photo),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return Image.memory(snapshot.data!, fit: BoxFit.cover);
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    DateFormat('dd MMM yyyy').format(photo.createdAt),
-                    style: Theme.of(context).textTheme.labelLarge,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: FutureBuilder(
+                    future: controller.thumbnailFor(photo),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return Image.memory(snapshot.data!, fit: BoxFit.cover);
+                    },
                   ),
-                  Text(
-                    DateFormat('hh:mm a').format(photo.createdAt),
-                    style: Theme.of(context).textTheme.bodySmall,
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('dd MMM yyyy').format(photo.createdAt),
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      Text(
+                        DateFormat('hh:mm a').format(photo.createdAt),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+            if (isSelectionMode)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.black54,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    isSelected ? Icons.check : Icons.circle_outlined,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

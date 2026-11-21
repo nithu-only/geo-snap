@@ -47,6 +47,8 @@ data class CaptureMetadata(
     val addressBody: String?,
     val saveFolder: String?,
     val saveFolderUri: String?,
+    val formattedCoordinates: String? = null,
+    val coordinateFormat: String? = null,
 ) {
     companion object {
         fun from(arguments: Map<*, *>) : CaptureMetadata {
@@ -77,6 +79,8 @@ data class CaptureMetadata(
                 addressBody = arguments["addressBody"] as? String,
                 saveFolder = arguments["saveFolder"] as? String,
                 saveFolderUri = arguments["saveFolderUri"] as? String,
+                formattedCoordinates = arguments["formattedCoordinates"] as? String,
+                coordinateFormat = arguments["coordinateFormat"] as? String,
             )
         }
     }
@@ -221,7 +225,7 @@ class WatermarkProcessor(
         }
         if (metadata.showCoordinates) {
             lines.add(
-                String.format(
+                metadata.formattedCoordinates ?: String.format(
                     Locale.US,
                     "Lat %.6f  Long %.6f",
                     metadata.latitude,
@@ -354,7 +358,7 @@ class WatermarkProcessor(
         }
 
         if (metadata.showCoordinates) {
-            lines.add(String.format(Locale.US, "Lat %.6f° Long %.6f°", metadata.latitude, metadata.longitude))
+            lines.add(metadata.formattedCoordinates ?: String.format(Locale.US, "Lat %.6f° Long %.6f°", metadata.latitude, metadata.longitude))
         }
 
         val extraTelemetry = ArrayList<String>()
@@ -525,7 +529,7 @@ class WatermarkProcessor(
         }
         if (metadata.showCoordinates) {
             lines.add(
-                String.format(
+                metadata.formattedCoordinates ?: String.format(
                     Locale.US,
                     "Lat %.6f  Long %.6f",
                     metadata.latitude,

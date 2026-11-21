@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +13,7 @@ import '../../../core/services/compass_service.dart';
 import '../../../core/state/gallery_controller.dart';
 import '../../../core/state/location_controller.dart';
 import '../../../core/state/settings_controller.dart';
+import '../../../core/utils/coordinate_formatter.dart';
 import '../../gallery/presentation/gallery_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 
@@ -64,6 +66,19 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
   StreamSubscription<double>? _compassSubscription;
   double _currentHeading = 0.0;
 
+  // Device Tilt / Horizon Level state
+  static const _tiltChannel = EventChannel('geo_snap/device_tilt');
+  StreamSubscription<dynamic>? _tiltSubscription;
+  double _currentRoll = 0.0;
+  double _currentPitch = 0.0;
+  bool _wasLevel = false;
+
+  // Exposure state
+  int _exposureMin = -4;
+  int _exposureMax = 4;
+  int _currentExposure = 0;
+  bool _exposureSupported = false;
+
   @override
   void initState() {
     super.initState();
@@ -80,10 +95,27 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
         });
       }
     });
+
+    _tiltSubscription = _tiltChannel.receiveBroadcastStream().listen((dynamic event) {
+      if (mounted && event is Map) {
+        final roll = (event['roll'] as num?)?.toDouble() ?? 0.0;
+        final pitch = (event['pitch'] as num?)?.toDouble() ?? 0.0;
+        final isLevel = roll.abs() < 1.0 && pitch.abs() < 2.0;
+        if (isLevel && !_wasLevel) {
+          HapticFeedback.lightImpact();
+        }
+        _wasLevel = isLevel;
+        setState(() {
+          _currentRoll = roll;
+          _currentPitch = pitch;
+        });
+      }
+    }, onError: (_) {});
   }
 
   @override
   void dispose() {
+    _tiltSubscription?.cancel();
     _compassSubscription?.cancel();
     _compassService.dispose();
     _flipController.dispose();
@@ -119,6 +151,27 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
     final channel = MethodChannel('geo_snap/camera_$id');
     channel.setMethodCallHandler(_onNativeCameraEvent);
     setState(() => _cameraChannel = channel);
+    _checkExposure(channel);
+  }
+
+  Future<void> _checkExposure(MethodChannel channel) async {
+    try {
+      final res = await channel.invokeMapMethod<String, dynamic>('getExposureRange');
+      if (res != null && res['supported'] == true && mounted) {
+        setState(() {
+          _exposureSupported = true;
+          _exposureMin = (res['min'] as num?)?.toInt() ?? -4;
+          _exposureMax = (res['max'] as num?)?.toInt() ?? 4;
+          _currentExposure = (res['current'] as num?)?.toInt() ?? 0;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _setExposure(int value) {
+    final clamped = value.clamp(_exposureMin, _exposureMax);
+    setState(() => _currentExposure = clamped);
+    _cameraChannel?.invokeMethod('setExposureCompensation', {'index': clamped});
   }
 
   // Shutter Flash feedback state
@@ -257,6 +310,12 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
             'timestampPattern': settings.timestampPattern,
             'showAddress': settings.showAddress,
             'showCoordinates': settings.showCoordinates,
+            'formattedCoordinates': CoordinateFormatter.format(
+              latitude: location.latitude,
+              longitude: location.longitude,
+              format: settings.coordinateFormat,
+            ),
+            'coordinateFormat': settings.coordinateFormat.name,
             'showAccuracy': settings.showAccuracy,
             'showMapPreview': settings.showMapPreview,
             'showAltitude': settings.showAltitude,
@@ -357,11 +416,21 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
     _cameraChannel!.invokeMethod('focusAtPoint', {'x': x, 'y': y});
 
     _focusRingTimer?.cancel();
-    _focusRingTimer = Timer(const Duration(seconds: 2), () {
+    _focusRingTimer = Timer(const Duration(seconds: 4), () {
       if (mounted) {
         setState(() => _showFocusRing = false);
       }
     });
+  }
+
+  void _toggleLevel(AppSettings settings) {
+    final controller = context.read<SettingsController>();
+    final next = !settings.showLevel;
+    controller.update(settings.copyWith(showLevel: next));
+    _showMessage(
+      next ? 'Virtual Horizon ON' : 'Virtual Horizon OFF',
+      subtitle: next ? 'Device level indicator active' : 'Level indicator hidden',
+    );
   }
 
   void _showMessage(String title, {String subtitle = '', bool isSuccess = true}) {
@@ -487,42 +556,87 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
           ),
         ),
 
-        // Focus Ring Overlay
+        // Focus Ring & Exposure Overlay
         if (_showFocusRing && _focusPoint != null)
           Positioned(
-            left: _focusPoint!.dx - 36,
-            top: _focusPoint!.dy - 36,
-            child: AnimatedScale(
-              scale: _focusRingScale,
-              duration: const Duration(milliseconds: 150),
-              curve: Curves.easeOutBack,
-              child: IgnorePointer(
-                child: Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.amberAccent, width: 2),
-                    shape: BoxShape.circle,
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black38,
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                      )
-                    ],
-                  ),
-                  child: Center(
+            left: (_focusPoint!.dx - 36).clamp(16.0, MediaQuery.of(context).size.width - 120.0),
+            top: (_focusPoint!.dy - 36).clamp(100.0, MediaQuery.of(context).size.height - 200.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                AnimatedScale(
+                  scale: _focusRingScale,
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOutBack,
+                  child: IgnorePointer(
                     child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Colors.amberAccent,
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.amberAccent, width: 2),
                         shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black38,
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          )
+                        ],
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Colors.amberAccent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+                if (_exposureSupported) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 100,
+                    width: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white24, width: 1),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.wb_sunny_rounded, size: 14, color: Colors.amberAccent),
+                        Expanded(
+                          child: RotatedBox(
+                            quarterTurns: 3,
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: Colors.amberAccent,
+                                inactiveTrackColor: Colors.white24,
+                                thumbColor: Colors.amberAccent,
+                                trackHeight: 2.0,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5.0),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10.0),
+                              ),
+                              child: Slider(
+                                value: _currentExposure.toDouble(),
+                                min: _exposureMin.toDouble(),
+                                max: _exposureMax.toDouble(),
+                                onChanged: (v) => _setExposure(v.round()),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
 
@@ -583,6 +697,19 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
           const Positioned.fill(
             child: IgnorePointer(
               child: _GridOverlay(),
+            ),
+          ),
+
+        // Virtual Horizon / Artificial Level Indicator
+        if (settings.showLevel)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: _VirtualHorizonOverlay(
+                  roll: _currentRoll,
+                  pitch: _currentPitch,
+                ),
+              ),
             ),
           ),
 
@@ -719,6 +846,14 @@ class _LiveCameraScreenState extends State<LiveCameraScreen> with SingleTickerPr
                     color: settings.showGrid ? Colors.tealAccent : Colors.white54,
                   ),
                   onPressed: () => _toggleGrid(settings),
+                ),
+                // Level / Virtual Horizon toggler
+                _GlassIconButton(
+                  icon: Icon(
+                    settings.showLevel ? Icons.screen_rotation_rounded : Icons.screen_lock_rotation_rounded,
+                    color: settings.showLevel ? const Color(0xFF00E676) : Colors.white54,
+                  ),
+                  onPressed: () => _toggleLevel(settings),
                 ),
                 // Settings Shortcut
                 _GlassIconButton(
@@ -1644,6 +1779,107 @@ class _FolderSelectionBadge extends StatelessWidget {
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VirtualHorizonOverlay extends StatelessWidget {
+  const _VirtualHorizonOverlay({
+    required this.roll,
+    required this.pitch,
+  });
+
+  final double roll;
+  final double pitch;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLevel = roll.abs() < 1.0 && pitch.abs() < 2.0;
+    final activeColor = isLevel ? const Color(0xFF00E676) : Colors.white70;
+
+    return Transform.rotate(
+      angle: -roll * math.pi / 180,
+      child: SizedBox(
+        width: 180,
+        height: 60,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Left horizon wing
+            Positioned(
+              left: 0,
+              child: Container(
+                width: 55,
+                height: 2.5,
+                decoration: BoxDecoration(
+                  color: activeColor,
+                  borderRadius: BorderRadius.circular(2),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+                  ],
+                ),
+              ),
+            ),
+            // Right horizon wing
+            Positioned(
+              right: 0,
+              child: Container(
+                width: 55,
+                height: 2.5,
+                decoration: BoxDecoration(
+                  color: activeColor,
+                  borderRadius: BorderRadius.circular(2),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+                  ],
+                ),
+              ),
+            ),
+            // Center reticle ring
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: activeColor, width: 2),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+                ],
+              ),
+              child: Center(
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: activeColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+            // Angle readout text badge
+            Positioned(
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  isLevel ? '0.0° LEVEL' : '${roll.abs().toStringAsFixed(1)}°',
+                  style: TextStyle(
+                    color: activeColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
             ),
           ],

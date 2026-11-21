@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_settings.dart';
+import '../utils/coordinate_formatter.dart';
 
 class SettingsService {
   static const _template = 'template';
@@ -20,6 +21,8 @@ class SettingsService {
   static const _flashMode = 'flashMode';
   static const _cameraLens = 'cameraLens';
   static const _showGrid = 'showGrid';
+  static const _showLevel = 'showLevel';
+  static const _coordinateFormat = 'coordinateFormat';
   static const _customNote = 'customNote';
   static const _timerSeconds = 'timerSeconds';
   static const _saveFolder = 'saveFolder';
@@ -29,6 +32,11 @@ class SettingsService {
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
     final defaults = AppSettings.defaults();
+    final formatIndex = prefs.getInt(_coordinateFormat);
+    final coordFormat = (formatIndex != null && formatIndex >= 0 && formatIndex < CoordinateFormat.values.length)
+        ? CoordinateFormat.values[formatIndex]
+        : defaults.coordinateFormat;
+
     return AppSettings(
       template: WatermarkTemplate
           .values[prefs.getInt(_template) ?? defaults.template.index],
@@ -53,6 +61,8 @@ class SettingsService {
       cameraLens: CameraLens
           .values[prefs.getInt(_cameraLens) ?? defaults.cameraLens.index],
       showGrid: prefs.getBool(_showGrid) ?? defaults.showGrid,
+      showLevel: prefs.getBool(_showLevel) ?? defaults.showLevel,
+      coordinateFormat: coordFormat,
       customNote: prefs.getString(_customNote) ?? defaults.customNote,
       timerSeconds: prefs.getInt(_timerSeconds) ?? defaults.timerSeconds,
       saveFolder: prefs.getString(_saveFolder) ?? defaults.saveFolder,
@@ -80,6 +90,8 @@ class SettingsService {
     await prefs.setInt(_flashMode, settings.flashMode.index);
     await prefs.setInt(_cameraLens, settings.cameraLens.index);
     await prefs.setBool(_showGrid, settings.showGrid);
+    await prefs.setBool(_showLevel, settings.showLevel);
+    await prefs.setInt(_coordinateFormat, settings.coordinateFormat.index);
     await prefs.setString(_customNote, settings.customNote);
     await prefs.setInt(_timerSeconds, settings.timerSeconds);
     await prefs.setString(_saveFolder, settings.saveFolder);
